@@ -1,8 +1,7 @@
-export default function HomePage() {
-  return (
-    <div className="text-center p-10 font-sans">
-      <h1 className="text-4xl font-bold mb-4">Welcome to Slights!</h1>
-      <p className="text-lg text-gray-200">Select Host or Join to begin.</p>
-    </div>
-  );
+// src/pages/index.tsx
+import React from 'react';
+import HomePage from './HomePage';
+
+export default function Index() {
+  return <HomePage />;
 }

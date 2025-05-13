@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { useGameStore } from '../lib/store';
 import { Info } from 'lucide-react';
 
@@ -8,9 +8,9 @@ const CreateGame: React.FC = () => {
   const [alias, setAlias] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const createRoom = useGameStore(state => state.createRoom);
-  const navigate = useNavigate();
+  const router = useRouter(); // ✅ Next.js hook
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,13 +18,13 @@ const CreateGame: React.FC = () => {
       setError('Both room code and name are required');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       await createRoom(roomCode, alias);
-      navigate(`/game/${roomCode.toUpperCase()}`);
+      router.push(`/game/${roomCode.toUpperCase()}`); // ✅ Replace navigate with router.push
     } catch (err) {
       setError('Error creating room');
       console.error(err);
@@ -56,7 +56,7 @@ const CreateGame: React.FC = () => {
               maxLength={6}
             />
           </div>
-          
+
           <div className="mb-6">
             <label htmlFor="alias" className="block mb-2 text-sm font-medium">Your Name</label>
             <input
@@ -69,9 +69,9 @@ const CreateGame: React.FC = () => {
               maxLength={15}
             />
           </div>
-          
+
           {error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
-          
+
           <button
             type="submit"
             className="btn-primary w-full"

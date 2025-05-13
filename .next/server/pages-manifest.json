@@ -1,0 +1,9 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/game/[roomCode]": "pages/game/[roomCode].js",
+  "/": "pages/index.js",
+  "/game/host": "pages/game/host.js",
+  "/game/join": "pages/game/join.js"
+}

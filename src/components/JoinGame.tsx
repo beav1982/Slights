@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { useGameStore } from '../lib/store';
 import { Users } from 'lucide-react';
 
@@ -8,9 +8,9 @@ const JoinGame: React.FC = () => {
   const [alias, setAlias] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const joinRoom = useGameStore(state => state.joinRoom);
-  const navigate = useNavigate();
+  const router = useRouter(); // ✅ Replace useNavigate
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,13 +18,13 @@ const JoinGame: React.FC = () => {
       setError('Both room code and name are required');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       await joinRoom(roomCode.toUpperCase(), alias);
-      navigate(`/game/${roomCode.toUpperCase()}`);
+      router.push(`/game/${roomCode.toUpperCase()}`); // ✅ Next.js route change
     } catch (err) {
       console.error('Error joining room:', err);
       setError('Room not found or is invalid. Please check the room code and try again.');
@@ -56,7 +56,7 @@ const JoinGame: React.FC = () => {
               maxLength={6}
             />
           </div>
-          
+
           <div className="mb-6">
             <label htmlFor="joinAlias" className="block mb-2 text-sm font-medium">Your Name</label>
             <input
@@ -69,9 +69,9 @@ const JoinGame: React.FC = () => {
               maxLength={15}
             />
           </div>
-          
+
           {error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
-          
+
           <button
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
