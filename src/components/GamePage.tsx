@@ -12,12 +12,10 @@ const GamePage: React.FC = () => {
 
   const roomData = useGameStore((state) => state.roomData);
   const session = useGameStore((state) => state.session);
-  const loadRoom = useGameStore((state) => state.loadRoom); // Optional: if needed for hydration
 
   useEffect(() => {
     if (roomCode && typeof roomCode === 'string') {
-      // Optional: implement a loadRoom call here if roomData/session aren't persisted
-      // loadRoom(roomCode); 
+      // loadRoom(roomCode); // Uncomment and define if needed
     }
   }, [roomCode]);
 
