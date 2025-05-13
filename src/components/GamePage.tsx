@@ -16,7 +16,10 @@ const GamePage: React.FC = () => {
 
   useEffect(() => {
     if (roomCode && typeof roomCode === 'string') {
-      loadRoom(roomCode);
+      console.log('[GamePage] Loading room:', roomCode);
+      loadRoom(roomCode).catch(err => {
+        console.error('[GamePage] Failed to load room:', err);
+      });
     }
   }, [roomCode, loadRoom]);
 
@@ -34,6 +37,7 @@ const GamePage: React.FC = () => {
   return (
     <div className="p-4 md:p-8">
       <h1 className="text-3xl font-bold text-center mb-6">Room: {session.room}</h1>
+      <p className="text-center text-gray-400 mb-4">You are the {isJudge ? 'Judge' : 'Player'}</p>
       {isJudge ? <JudgeView /> : <PlayerView />}
     </div>
   );
