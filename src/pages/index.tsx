@@ -1,13 +1,8 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Slights: A Game of Minor Inconveniences</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+export default function HomePage() {
+  return (
+    <div className="text-center p-10 font-sans">
+      <h1 className="text-4xl font-bold mb-4">Welcome to Slights!</h1>
+      <p className="text-lg text-gray-200">Select Host or Join to begin.</p>
+    </div>
+  );
+}
