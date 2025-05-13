@@ -32,7 +32,7 @@ const GamePage: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-3xl font-bold text-center mb-6">Room: {roomData.roomCode}</h1>
+      <h1 className="text-3xl font-bold text-center mb-6">Room: {session.room}</h1>
       {isJudge ? <JudgeView /> : <PlayerView />}
     </div>
   );
