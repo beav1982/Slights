@@ -1,7 +1,7 @@
 // src/lib/store.ts
 
 import { create } from 'zustand';
-import { drawHand, drawRandom, nextJudge, slights, curses } from './gameData';
+import { drawHand, drawRandom, nextJudge, slights, curses } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
 
 const mockStorage = new Map<string, string>();
