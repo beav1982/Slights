@@ -1,7 +1,7 @@
 // src/lib/store.ts
 
 import { create } from 'zustand';
-import { drawHand, drawRandom, nextJudge } from './gameData';
+import { drawHand, drawRandom, nextJudge, slights, curses } from './gameData';
 import { GameSession, RoomData } from './types';
 
 const mockStorage = new Map<string, string>();
@@ -104,8 +104,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     await mockKV.set(`room:${code}:players`, JSON.stringify([alias]));
     await mockKV.set(`room:${code}:scores`, JSON.stringify({ [alias]: 0 }));
     await mockKV.set(`room:${code}:round`, '1');
-    await mockKV.set(`room:${code}:slight`, drawRandom(require('./gameData').slights));
-    await mockKV.set(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(require('./gameData').curses)));
+    await mockKV.set(`room:${code}:slight`, drawRandom(slights));
+    await mockKV.set(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
 
     set({ session: { name: alias, room: code } });
     await get().loadRoomData(code);
@@ -128,7 +128,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       scores[alias] = 0;
       await mockKV.set(`room:${code}:players`, JSON.stringify(players));
       await mockKV.set(`room:${code}:scores`, JSON.stringify(scores));
-      await mockKV.set(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(require('./gameData').curses)));
+      await mockKV.set(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
     }
 
     set({ session: { name: alias, room: code } });
@@ -146,7 +146,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   redrawHand: async () => {
     const { session, loadRoomData } = get();
     if (!session.room || !session.name) return;
-    await mockKV.set(`room:${session.room}:hand:${session.name}`, JSON.stringify(drawHand(require('./gameData').curses)));
+    await mockKV.set(`room:${session.room}:hand:${session.name}`, JSON.stringify(drawHand(curses)));
     await loadRoomData(session.room);
   },
 
@@ -158,7 +158,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     scores[winner] = (scores[winner] || 0) + 1;
     await mockKV.set(`room:${session.room}:scores`, JSON.stringify(scores));
     await mockKV.set(`room:${session.room}:round`, `${roomData.round + 1}`);
-    await mockKV.set(`room:${session.room}:slight`, drawRandom(require('./gameData').slights));
+    await mockKV.set(`room:${session.room}:slight`, drawRandom(slights));
     await mockKV.set(`room:${session.room}:judge`, nextJudge(roomData.players, session.name));
 
     await Promise.all(
