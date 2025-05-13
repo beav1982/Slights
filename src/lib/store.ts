@@ -1,7 +1,9 @@
+// src/lib/store.ts
+
 import { create } from 'zustand';
+import { kv } from '@vercel/kv';
 import { drawHand, drawRandom, nextJudge, slights, curses } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
-import { kv } from '@vercel/kv';
 
 interface GameStore {
   session: GameSession;
@@ -26,9 +28,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     room: null
   },
 
-  setSession: (partial) => set((state) => ({
-    session: { ...state.session, ...partial }
-  })),
+  setSession: (partial) =>
+    set((state) => ({
+      session: { ...state.session, ...partial }
+    })),
 
   roomData: null,
 
@@ -47,8 +50,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const players = JSON.parse(playersJson as string);
     const scores = JSON.parse(scoresJson as string);
-
     const submissions: Record<string, string> = {};
+
     await Promise.all(
       players.map(async (player: string) => {
         const submission = await kv.get(`room:${roomCode}:submission:${player}`);
@@ -58,8 +61,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const player = get().session.name;
     const hands: Record<string, string[]> = {};
-    const hand = await kv.get(`room:${roomCode}:hand:${player}`);
-    if (hand) hands[player] = JSON.parse(hand as string);
+    if (player) {
+      const hand = await kv.get(`room:${roomCode}:hand:${player}`);
+      if (hand) hands[player] = JSON.parse(hand as string);
+    }
 
     set({
       roomData: {
@@ -104,6 +109,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!players.includes(alias)) {
       players.push(alias);
       scores[alias] = 0;
+
       await kv.set(`room:${code}:players`, JSON.stringify(players));
       await kv.set(`room:${code}:scores`, JSON.stringify(scores));
       await kv.set(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
@@ -116,6 +122,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   submitCurse: async (curse) => {
     const { session, loadRoomData } = get();
     if (!session.room || !session.name) return;
+
     await kv.set(`room:${session.room}:submission:${session.name}`, curse);
     await loadRoomData(session.room);
     get().playSound('submit');
@@ -124,6 +131,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   redrawHand: async () => {
     const { session, loadRoomData } = get();
     if (!session.room || !session.name) return;
+
     await kv.set(`room:${session.room}:hand:${session.name}`, JSON.stringify(drawHand(curses)));
     await loadRoomData(session.room);
   },
@@ -134,16 +142,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const scores = { ...roomData.scores };
     scores[winner] = (scores[winner] || 0) + 1;
-    await kv.set(`room:${session.room}:scores`, JSON.stringify(scores));
-    await kv.set(`room:${session.room}:round`, `${roomData.round + 1}`);
-    await kv.set(`room:${session.room}:slight`, drawRandom(slights));
-    await kv.set(`room:${session.room}:judge`, nextJudge(roomData.players, session.name));
 
-    await Promise.all(
-      roomData.players.map(player =>
+    await Promise.all([
+      kv.set(`room:${session.room}:scores`, JSON.stringify(scores)),
+      kv.set(`room:${session.room}:round`, `${roomData.round + 1}`),
+      kv.set(`room:${session.room}:slight`, drawRandom(slights)),
+      kv.set(`room:${session.room}:judge`, nextJudge(roomData.players, session.name)),
+      ...roomData.players.map((player) =>
         kv.del(`room:${session.room}:submission:${player}`)
       )
-    );
+    ]);
 
     get().playSound('win');
     await loadRoomData(session.room);
@@ -153,7 +161,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const audio = document.getElementById(`${sound}Sound`) as HTMLAudioElement;
     if (audio) {
       audio.currentTime = 0;
-      audio.play().catch(e => console.error('Error playing sound:', e));
+      audio.play().catch((e) => console.error('Error playing sound:', e));
     }
   }
 }));
