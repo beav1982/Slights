@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { GamePage } from '../../components/GamePage';
+import GamePage from '../../components/GamePage';
 export default function GameWrapper() {
   const router = useRouter();
   const roomCode = router.query.roomCode as string;
