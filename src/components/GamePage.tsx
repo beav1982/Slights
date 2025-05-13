@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { drawHand, drawRandom, nextJudge, slights, curses } from '../lib/gameData';
-import { GameSession, RoomData } from './types';
+import { GameSession, RoomData } from '../lib/types';
 import { kv } from '@vercel/kv';
 
 interface GameStore {
