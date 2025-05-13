@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-900 text-white;
+  }
+  
+  h1 {
+    @apply text-4xl font-bold mb-6;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold mb-4;
+  }
+  
+  h3 {
+    @apply text-xl font-medium mb-3;
+  }
+  
+  button {
+    @apply transition-all duration-200;
+  }
+  
+  input[type="text"] {
+    @apply bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500;
+  }
+  
+  input[type="checkbox"] {
+    @apply w-4 h-4 accent-indigo-600;
+  }
+  
+  input[type="radio"] {
+    @apply w-4 h-4 accent-indigo-600;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-lg transition-all duration-200;
+  }
+  
+  .card-hover {
+    @apply hover:border-indigo-500 hover:shadow-indigo-900/20 hover:shadow-xl;
+  }
+  
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded;
+  }
+  
+  .btn-success {
+    @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded;
+  }
+  
+  .slight-card {
+    @apply bg-indigo-900/50 border border-indigo-800 rounded-lg p-4 shadow-md;
+  }
+  
+  .curse-card {
+    @apply bg-gray-800 border border-gray-700 rounded-lg p-3 hover:bg-gray-700;
+  }
+  
+  .submission-card {
+    @apply bg-yellow-900/30 border border-yellow-800 rounded-lg p-3 hover:bg-yellow-900/50;
+  }
+  
+  .animate-pop {
+    @apply transition-all duration-200 transform hover:scale-[1.02];
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
