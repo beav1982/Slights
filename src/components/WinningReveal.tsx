@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Award, Crown } from 'lucide-react';
+import { useSoundStore } from '../stores/useSoundStore';
 
 interface WinningRevealProps {
   winner: string;
@@ -8,10 +9,13 @@ interface WinningRevealProps {
 }
 
 const WinningReveal: React.FC<WinningRevealProps> = ({ winner, curse, onClose }) => {
+  const playSound = useSoundStore(state => state.playSound);
+
   useEffect(() => {
+    playSound('win');
     const timer = setTimeout(onClose, 5000); // Auto-close after 5 seconds
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [onClose, playSound]);
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fade-in">

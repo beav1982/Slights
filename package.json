@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@vercel/kv": "^1.0.1",
+    "howler": "^2.2.4",
     "lucide-react": "^0.344.0",
     "next": "^15.3.2",
     "react": "^18.3.1",
@@ -23,7 +24,6 @@
     "@types/node": "^22.15.17",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@types/react-router-dom": "^5.3.3",
     "autoprefixer": "^10.4.18",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",

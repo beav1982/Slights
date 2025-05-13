@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../lib/store';
+import { useSoundStore } from '../stores/useSoundStore';
 import { Crown } from 'lucide-react';
 import WinningReveal from './WinningReveal';
 
@@ -11,7 +12,8 @@ const JudgeView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const session = useGameStore(state => state.session);
   const pickWinner = useGameStore(state => state.pickWinner);
-  
+  const playSound = useSoundStore((state) => state.playSound);
+
   if (!roomData || !session.name) return null;
   
   const submissions = Object.entries(roomData.submissions)
@@ -24,8 +26,8 @@ const JudgeView: React.FC = () => {
     
     setSubmitting(true);
     try {
-      setShowWinner(true);
-      get().playSound('win');
+  setShowWinner(true);
+playSound('win');
     } catch (err) {
       console.error('Error picking winner:', err);
       setSubmitting(false);

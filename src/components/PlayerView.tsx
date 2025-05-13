@@ -1,35 +1,41 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../lib/store';
+import { useSoundStore } from '../stores/useSoundStore';
 
 const PlayerView: React.FC = () => {
   const [selectedCurse, setSelectedCurse] = useState<string>('');
   const [wantRedraw, setWantRedraw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+
   const session = useGameStore(state => state.session);
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
-  
+
+  const playSound = useSoundStore(state => state.playSound);
+
   if (!roomData || !session.name) return null;
-  
+
   const playerHand = roomData.hands[session.name] || [];
   const hasSubmitted = !!roomData.submissions[session.name];
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    
+
     try {
       if (wantRedraw) {
         await redrawHand();
         setSelectedCurse('');
         setWantRedraw(false);
+        playSound('error'); // Optional: sound cue for redraw
       } else if (selectedCurse) {
         await submitCurse(selectedCurse);
+        playSound('submit'); // Play on submit
       }
     } catch (err) {
       console.error('Error submitting:', err);
+      playSound('error');
     } finally {
       setSubmitting(false);
     }
@@ -50,19 +56,22 @@ const PlayerView: React.FC = () => {
         <h3 className="text-xl font-semibold mb-2 text-indigo-200">The Slight:</h3>
         <p className="text-xl italic text-white">{roomData.slight}</p>
       </div>
-      
+
       <h3 className="text-lg font-semibold mb-3">Choose Your Curse:</h3>
-      
+
       <form onSubmit={handleSubmit}>
         <div className="grid gap-3 mb-6">
           {playerHand.map((curse, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`curse-card animate-pop cursor-pointer ${selectedCurse === curse ? 'border-indigo-500 bg-gray-700' : ''}`}
-              onClick={() => setSelectedCurse(curse)}
+              onClick={() => {
+                setSelectedCurse(curse);
+                playSound('click');
+              }}
             >
               <label className="flex items-start cursor-pointer">
-                <input 
+                <input
                   type="radio"
                   name="curse"
                   value={curse}
@@ -75,7 +84,7 @@ const PlayerView: React.FC = () => {
             </div>
           ))}
         </div>
-        
+
         <div className="flex items-center mb-6">
           <input
             type="checkbox"
@@ -88,16 +97,16 @@ const PlayerView: React.FC = () => {
             Redraw my hand (skip this round)
           </label>
         </div>
-        
+
         <button
           type="submit"
           className="btn-primary w-full md:w-auto"
           disabled={submitting || (!selectedCurse && !wantRedraw)}
         >
-          {submitting 
-            ? 'Submitting...' 
-            : wantRedraw 
-              ? 'Redraw Hand' 
+          {submitting
+            ? 'Submitting...'
+            : wantRedraw
+              ? 'Redraw Hand'
               : 'Submit Curse'}
         </button>
       </form>
