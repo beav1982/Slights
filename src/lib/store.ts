@@ -1,7 +1,9 @@
 // src/lib/store.ts
 
 import { create } from 'zustand';
-import { kvGet, kvSet, kvDelete } from './redis';
+// IMPORTANT: Assuming your updated redis.ts exports functions like clientKvGet, clientKvSet, clientKvDelete
+// which internally call your Next.js API routes (e.g., /api/kv/set)
+import { clientKvGet, clientKvSet, clientKvDelete } from './redis';
 import { drawHand, drawRandom, nextJudge, slights, curses } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
 
@@ -36,130 +38,181 @@ export const useGameStore = create<GameStore>((set, get) => ({
   roomData: null,
 
   loadRoomData: async (roomCode: string) => {
-    const [judge, playersJson, scoresJson, round, slight] = await Promise.all([
-      kvGet(`room:${roomCode}:judge`),
-      kvGet(`room:${roomCode}:players`),
-      kvGet(`room:${roomCode}:scores`),
-      kvGet(`room:${roomCode}:round`),
-      kvGet(`room:${roomCode}:slight`)
-    ]);
+    console.log(`[store.ts] loadRoomData: Loading room ${roomCode}`);
+    try {
+      const [judge, playersJson, scoresJson, round, slight] = await Promise.all([
+        clientKvGet(`room:${roomCode}:judge`), // Using clientKvGet
+        clientKvGet(`room:${roomCode}:players`),
+        clientKvGet(`room:${roomCode}:scores`),
+        clientKvGet(`room:${roomCode}:round`),
+        clientKvGet(`room:${roomCode}:slight`)
+      ]);
 
-    if (!judge || !playersJson || !scoresJson || !round || !slight) {
-      throw new Error('Incomplete room data');
-    }
+      console.log(`[store.ts] loadRoomData - Fetched from KV:`, { judge, playersJson, scoresJson, round, slight });
 
-    const players = JSON.parse(playersJson);
-    const scores = JSON.parse(scoresJson);
-    const submissions: Record<string, string> = {};
-
-    await Promise.all(
-      players.map(async (player: string) => {
-        const submission = await kvGet(`room:${roomCode}:submission:${player}`);
-        if (submission) submissions[player] = submission;
-      })
-    );
-
-    const player = get().session.name;
-    const hands: Record<string, string[]> = {};
-    if (player) {
-      const hand = await kvGet(`room:${roomCode}:hand:${player}`);
-      if (hand) hands[player] = JSON.parse(hand);
-    }
-
-    set({
-      roomData: {
-        judge,
-        players,
-        scores,
-        round: parseInt(round),
-        slight,
-        submissions,
-        hands
+      if (!judge || !playersJson || !scoresJson || !round || !slight) {
+        console.error(`[store.ts] loadRoomData: Incomplete room data for ${roomCode}`);
+        throw new Error('Incomplete room data');
       }
-    });
+
+      const players = JSON.parse(playersJson);
+      const scores = JSON.parse(scoresJson);
+      const submissions: Record<string, string> = {};
+
+      await Promise.all(
+        players.map(async (player: string) => {
+          const submission = await clientKvGet(`room:${roomCode}:submission:${player}`); // Using clientKvGet
+          if (submission) submissions[player] = submission;
+        })
+      );
+
+      const currentPlayerName = get().session.name;
+      const hands: Record<string, string[]> = {};
+      if (currentPlayerName) { // Ensure player name exists before fetching hand
+        const hand = await clientKvGet(`room:${roomCode}:hand:${currentPlayerName}`); // Using clientKvGet
+        if (hand) hands[currentPlayerName] = JSON.parse(hand);
+      }
+
+      set({
+        roomData: {
+          judge,
+          players,
+        scores,
+          round: parseInt(round),
+          slight,
+          submissions,
+          hands
+        }
+      });
+      console.log(`[store.ts] loadRoomData: Room ${roomCode} data set in store.`);
+    } catch (error) {
+      console.error(`[store.ts] loadRoomData: Failed for room ${roomCode}:`, error);
+      // Optionally, clear roomData or set an error state here
+      set({ roomData: null }); // Clear room data on error
+      throw error; // Re-throw for UI to handle
+    }
   },
 
   createRoom: async (roomCode, alias) => {
     const code = roomCode.toUpperCase();
-    await kvSet(`room:${code}:judge`, alias);
-    await kvSet(`room:${code}:players`, JSON.stringify([alias]));
-    await kvSet(`room:${code}:scores`, JSON.stringify({ [alias]: 0 }));
-    await kvSet(`room:${code}:round`, '1');
-    await kvSet(`room:${code}:slight`, drawRandom(slights));
-    await kvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
+    console.log(`[store.ts] createRoom: Attempting for room ${code}, alias ${alias}`);
+    try {
+      await clientKvSet(`room:${code}:judge`, alias); // Using clientKvSet
+      await clientKvSet(`room:${code}:players`, JSON.stringify([alias]));
+      await clientKvSet(`room:${code}:scores`, JSON.stringify({ [alias]: 0 }));
+      await clientKvSet(`room:${code}:round`, '1');
+      await clientKvSet(`room:${code}:slight`, drawRandom(slights));
+      await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
+      console.log(`[store.ts] createRoom: All KV operations complete for room ${code}`);
 
-    set({ session: { name: alias, room: code } });
-    await get().loadRoomData(code);
+      set({ session: { name: alias, room: code } });
+      await get().loadRoomData(code);
+    } catch (error) {
+      console.error(`[store.ts] createRoom: Error for room ${code}:`, error);
+      throw error;
+    }
   },
 
   joinRoom: async (roomCode, alias) => {
     const code = roomCode.toUpperCase();
-    const [playersJson, scoresJson] = await Promise.all([
-      kvGet(`room:${code}:players`),
-      kvGet(`room:${code}:scores`)
-    ]);
+    console.log(`[store.ts] joinRoom: Attempting for room ${code}, alias ${alias}`);
+    try {
+      const [playersJson, scoresJson] = await Promise.all([
+        clientKvGet(`room:${code}:players`), // Using clientKvGet
+        clientKvGet(`room:${code}:scores`)
+      ]);
 
-    if (!playersJson || !scoresJson) {
-      throw new Error('Room not found');
+      console.log(`[store.ts] joinRoom - Fetched from KV:`, { playersJson, scoresJson });
+
+      if (!playersJson || !scoresJson) {
+        console.error(`[store.ts] joinRoom: Room ${code} not found or data incomplete.`);
+        throw new Error('Room not found');
+      }
+
+      const players = JSON.parse(playersJson);
+      const scores = JSON.parse(scoresJson);
+
+      if (!players.includes(alias)) {
+        players.push(alias);
+        scores[alias] = 0;
+
+        await clientKvSet(`room:${code}:players`, JSON.stringify(players)); // Using clientKvSet
+        await clientKvSet(`room:${code}:scores`, JSON.stringify(scores));
+        await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
+      }
+      console.log(`[store.ts] joinRoom: Successfully processed join for ${alias} in room ${code}`);
+
+      set({ session: { name: alias, room: code } });
+      await get().loadRoomData(code);
+    } catch (error) {
+      console.error(`[store.ts] joinRoom: Error for room ${code} with alias ${alias}:`, error);
+      throw error;
     }
-
-    const players = JSON.parse(playersJson);
-    const scores = JSON.parse(scoresJson);
-
-    if (!players.includes(alias)) {
-      players.push(alias);
-      scores[alias] = 0;
-
-      await kvSet(`room:${code}:players`, JSON.stringify(players));
-      await kvSet(`room:${code}:scores`, JSON.stringify(scores));
-      await kvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses)));
-    }
-
-    set({ session: { name: alias, room: code } });
-    await get().loadRoomData(code);
   },
 
   submitCurse: async (curse) => {
-    const { session, loadRoomData } = get();
+    const { session, loadRoomData, playSound } = get();
     if (!session.room || !session.name) return;
-
-    await kvSet(`room:${session.room}:submission:${session.name}`, curse);
-    await loadRoomData(session.room);
-    get().playSound('submit');
+    console.log(`[store.ts] submitCurse: ${session.name} submitting '${curse}' for room ${session.room}`);
+    try {
+      await clientKvSet(`room:${session.room}:submission:${session.name}`, curse); // Using clientKvSet
+      await loadRoomData(session.room);
+      playSound('submit');
+    } catch (error) {
+      console.error(`[store.ts] submitCurse: Error for ${session.name} in room ${session.room}:`, error);
+      throw error;
+    }
   },
 
   redrawHand: async () => {
     const { session, loadRoomData } = get();
     if (!session.room || !session.name) return;
-
-    await kvSet(`room:${session.room}:hand:${session.name}`, JSON.stringify(drawHand(curses)));
-    await loadRoomData(session.room);
+    console.log(`[store.ts] redrawHand: ${session.name} redrawing hand for room ${session.room}`);
+    try {
+      await clientKvSet(`room:${session.room}:hand:${session.name}`, JSON.stringify(drawHand(curses))); // Using clientKvSet
+      await loadRoomData(session.room);
+    } catch (error) {
+      console.error(`[store.ts] redrawHand: Error for ${session.name} in room ${session.room}:`, error);
+      throw error;
+    }
   },
 
   pickWinner: async (winner) => {
-    const { session, roomData, loadRoomData } = get();
-    if (!session.room || !roomData) return;
+    const { session, roomData, loadRoomData, playSound } = get();
+    if (!session.room || !roomData || !session.name) return; // Added session.name check
+    console.log(`[store.ts] pickWinner: Judge ${session.name} picking ${winner} in room ${session.room}`);
+    try {
+      const scores = { ...roomData.scores };
+      scores[winner] = (scores[winner] || 0) + 1;
 
-    const scores = { ...roomData.scores };
-    scores[winner] = (scores[winner] || 0) + 1;
+      await Promise.all([
+        clientKvSet(`room:${session.room}:scores`, JSON.stringify(scores)), // Using clientKvSet
+        clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
+        clientKvSet(`room:${session.room}:slight`, drawRandom(slights)),
+        clientKvSet(`room:${session.room}:judge`, nextJudge(roomData.players, roomData.judge)), // judge should be current judge from roomData
+        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`)) // Using clientKvDelete
+      ]);
 
-    await Promise.all([
-      kvSet(`room:${session.room}:scores`, JSON.stringify(scores)),
-      kvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
-      kvSet(`room:${session.room}:slight`, drawRandom(slights)),
-      kvSet(`room:${session.room}:judge`, nextJudge(roomData.players, session.name)),
-      ...roomData.players.map((player) => kvDelete(`room:${session.room}:submission:${player}`))
-    ]);
-
-    get().playSound('win');
-    await loadRoomData(session.room);
+      playSound('win');
+      await loadRoomData(session.room);
+    } catch (error) {
+      console.error(`[store.ts] pickWinner: Error in room ${session.room}:`, error);
+      throw error;
+    }
   },
 
   playSound: (sound) => {
-    const audio = document.getElementById(`${sound}Sound`) as HTMLAudioElement;
-    if (audio) {
-      audio.currentTime = 0;
-      audio.play().catch((e) => console.error('Error playing sound:', e));
+    // This will only work if called from client-side hydrated component
+    if (typeof document !== 'undefined') {
+      const audio = document.getElementById(`${sound}Sound`) as HTMLAudioElement;
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch((e) => console.error('Error playing sound:', e));
+      } else {
+        console.warn(`[store.ts] playSound: Audio element '${sound}Sound' not found.`);
+      }
+    } else {
+      console.warn(`[store.ts] playSound: Attempted to play sound in non-browser environment.`);
     }
   }
 }));
