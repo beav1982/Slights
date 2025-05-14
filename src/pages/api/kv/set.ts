@@ -6,7 +6,7 @@ const TOKEN = process.env.KV_REST_API_TOKEN;
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse // Type for res.json() will be inferred or can be more specific
 ) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -20,7 +20,7 @@ export default async function handler(
 
   const { key, value } = req.body;
 
-  if (!key || typeof value === 'undefined') { // value can be an empty string
+  if (!key || typeof value === 'undefined') {
     return res.status(400).json({ error: 'Key and value are required' });
   }
 
@@ -31,7 +31,7 @@ export default async function handler(
       headers: {
         Authorization: `Bearer ${TOKEN}`,
       },
-      body: value, // Assuming value is already a string (often JSON.stringified by caller)
+      body: value,
     });
 
     if (!upstashResponse.ok) {
@@ -42,10 +42,11 @@ export default async function handler(
 
     const data = await upstashResponse.json();
     console.log(`[API /kv/set] Successfully set key: ${key}. Upstash response:`, data);
-    return res.status(200).json(data); // Send Upstash response back
+    return res.status(200).json(data);
 
-  } catch (error: any) {
+  } catch (error: unknown) { // Changed 'error: any' to 'error: unknown'
     console.error(`[API /kv/set] Error setting key ${key}:`, error);
-    return res.status(500).json({ error: 'Failed to set value in KV store', details: error.message });
+    const message = error instanceof Error ? error.message : 'Failed to set value in KV store';
+    return res.status(500).json({ error: message, details: String(error) });
   }
 }

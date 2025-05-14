@@ -7,7 +7,7 @@ const TOKEN = process.env.KV_REST_API_TOKEN;
 type Data = {
   result?: string | null;
   error?: string;
-  details?: string;
+  details?: string; // Keep details for structured error
 };
 
 export default async function handler(
@@ -42,21 +42,21 @@ export default async function handler(
     if (!upstashResponse.ok) {
       const errorText = await upstashResponse.text();
       console.error(`[API /kv/get] Upstash error getting key ${key}. Status: ${upstashResponse.status}. Response: ${errorText}`);
-      // Try to parse error from Upstash if it's JSON
       try {
         const upstashError = JSON.parse(errorText);
         return res.status(upstashResponse.status).json({ error: `Upstash error: ${upstashError.error || errorText}` });
-      } catch (e) {
+      } catch (_e) { // Changed 'e' to '_e'
         return res.status(upstashResponse.status).json({ error: `Upstash error: ${errorText}` });
       }
     }
 
     const data = await upstashResponse.json();
-    console.log(`[API /kv/get] Successfully got key: ${key}. Value:`, data.result ? data.result.substring(0,50) + '...' : null);
+    console.log(`[API /kv/get] Successfully got key: ${key}. Value:`, data.result ? String(data.result).substring(0,50) + '...' : null);
     return res.status(200).json({ result: data.result ?? null });
 
-  } catch (error: any) {
+  } catch (error: unknown) { // Changed 'error: any' to 'error: unknown'
     console.error(`[API /kv/get] Internal error getting key ${key}:`, error);
-    return res.status(500).json({ error: 'Failed to get value from KV store', details: error.message });
+    const message = error instanceof Error ? error.message : 'Failed to get value from KV store';
+    return res.status(500).json({ error: message, details: String(error) });
   }
 }
