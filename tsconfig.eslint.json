@@ -1,0 +1,18 @@
+// tsconfig.eslint.json
+{
+  "extends": "./tsconfig.json", // Inherit compilerOptions from your main tsconfig
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "src/**/*.ts",       // All .ts files in src and its subdirectories
+    "src/**/*.tsx",      // All .tsx files in src and its subdirectories
+    "eslint.config.js",  // So ESLint can lint its own config
+    "postcss.config.cjs",
+    "tailwind.config.cjs"
+    // Add any other files ESLint should be aware of for typed linting
+  ],
+  "exclude": [
+    "node_modules"
+    // Add other specific exclusions if needed, but 'include' is often enough here
+  ]
+}

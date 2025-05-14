@@ -1,38 +1,44 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.node.json"
-    }
-  ],
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "target": "ES2017", // Or "es5" if you need older browser support, Next.js handles transpilation
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": false,
-    "noEmit": true,
+    "strict": false, // Consider enabling strict mode (true) for better type safety later
+    "noEmit": true, // Next.js handles transpilation, so TypeScript itself doesn't need to emit JS
     "incremental": true,
     "module": "esnext",
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler", // "bundler" is the modern recommendation for moduleResolution
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve"
+    "jsx": "preserve", // Important for Next.js
+    "plugins": [ // If you are using ts-node or have TS plugins for Next.js like with SWC
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".", // Good for path aliases
+    "paths": { // Example for path aliases, adjust if you use them
+      "@/*": ["./src/*"]
+    }
+    // Ensure "noImplicitAny" is false if you have implicit 'any' types,
+    // or address them. "strict: true" would enable this.
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx"
+    ".next/types/**/*.ts", // For Next.js generated types
+    "**/*.ts",             // Include all .ts files in all subdirectories
+    "**/*.tsx",            // Include all .tsx files in all subdirectories
+    "**/*.cjs",            // Include .cjs files if ESLint needs to be aware of them for TS
+    "**/*.mjs"             // Include .mjs files
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next", // Often excluded from direct TS processing by this file
+    "out",
+    "build",
+    "dist"
+    // Do NOT include "tsconfig.app.json" or "tsconfig.node.json" here
   ]
 }
