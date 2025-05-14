@@ -4,5 +4,4 @@
       "SKIP_VITE": "true"
     }
   },
-  "ignoreFiles": ["vite.config.ts"]
 }
