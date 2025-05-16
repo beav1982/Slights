@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
-import { clientKvGet } from '../lib/redis'; // Only import what's used!
+import { clientKvGet } from '../lib/redis';
 import WinningReveal from './WinningReveal';
+import ScoreboardModal from './ScoreboardModal';
 
 const PlayerView: React.FC = () => {
   const [selectedCurse, setSelectedCurse] = useState<string>('');
@@ -12,6 +13,7 @@ const PlayerView: React.FC = () => {
   // Winner reveal state
   const [showWinner, setShowWinner] = useState(false);
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
+  const [showScoreboard, setShowScoreboard] = useState(false);
 
   const session = useGameStore((state) => state.session);
   const roomData = useGameStore((state) => state.roomData);
@@ -33,6 +35,7 @@ const PlayerView: React.FC = () => {
   // Polling: Winner reveal modal
   useEffect(() => {
     if (!session.room) return;
+    let soundPlayed = false; // Play win sound only once per winner
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
@@ -41,10 +44,15 @@ const PlayerView: React.FC = () => {
           if (!winnerData || winnerData.winner !== data.winner) {
             setWinnerData(data);
             setShowWinner(true);
-            playSound('win');
+            if (!soundPlayed) {
+              playSound('win');
+              soundPlayed = true;
+            }
             setTimeout(() => {
               setShowWinner(false);
               setWinnerData(null);
+              setShowScoreboard(true);
+              setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard
             }, 5000);
           }
         } catch {
@@ -57,7 +65,7 @@ const PlayerView: React.FC = () => {
 
   if (!roomData || !session.name) return null;
 
-  // If the winner reveal is active, show it and block normal play
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -66,7 +74,21 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
+          setShowScoreboard(true);
+          setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard
         }}
+      />
+    );
+  }
+
+  // Scoreboard Modal (auto-shows after winner)
+  if (showScoreboard && roomData) {
+    return (
+      <ScoreboardModal
+        scores={roomData.scores}
+        players={roomData.players}
+        judge={roomData.judge}
+        onClose={() => setShowScoreboard(false)}
       />
     );
   }

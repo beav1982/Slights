@@ -3,21 +3,21 @@ import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
 import { clientKvGet, clientKvDelete } from '../lib/redis';
 import WinningReveal from './WinningReveal';
+import ScoreboardModal from './ScoreboardModal';
 
 const JudgeView: React.FC = () => {
   const [selectedWinner, setSelectedWinner] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Winner reveal state
   const [showWinner, setShowWinner] = useState(false);
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
+  const [showScoreboard, setShowScoreboard] = useState(false);
 
-  const session = useGameStore((state) => state.session);
-  const roomData = useGameStore((state) => state.roomData);
-  const pickWinner = useGameStore((state) => state.pickWinner);
-  const loadRoomData = useGameStore((state) => state.loadRoomData);
+  const session = useGameStore(state => state.session);
+  const roomData = useGameStore(state => state.roomData);
+  const pickWinner = useGameStore(state => state.pickWinner);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
-  const playSound = useSoundStore((state) => state.playSound);
+  const playSound = useSoundStore(state => state.playSound);
 
   // Polling: Reload room data every 5 seconds
   useEffect(() => {
@@ -31,6 +31,7 @@ const JudgeView: React.FC = () => {
   // Polling: Winner reveal modal (judge clears winner key)
   useEffect(() => {
     if (!session.room) return;
+    let soundPlayed = false;
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
@@ -39,15 +40,19 @@ const JudgeView: React.FC = () => {
           if (!winnerData || winnerData.winner !== data.winner) {
             setWinnerData(data);
             setShowWinner(true);
-            playSound('win');
+            if (!soundPlayed) {
+              playSound('win');
+              soundPlayed = true;
+            }
             setTimeout(async () => {
               setShowWinner(false);
               setWinnerData(null);
-              // Judge is responsible for clearing the winner key!
               await clientKvDelete(`room:${session.room}:lastWinner`);
+              setShowScoreboard(true);
+              setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
             }, 5000);
           }
-        } catch {
+        } catch (_e) {
           // ignore JSON parse errors or deletion errors
         }
       }
@@ -57,7 +62,7 @@ const JudgeView: React.FC = () => {
 
   if (!roomData || !session.name) return null;
 
-  // If winner reveal is active, block all other actions and show the modal
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -66,20 +71,37 @@ const JudgeView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
+          setShowScoreboard(true);
+          setTimeout(() => setShowScoreboard(false), 5000);
         }}
       />
     );
   }
 
-  // All submissions except for the judge's own (just in case)
-  const submissions = Object.entries(roomData.submissions).filter(
-    ([player]) => player !== roomData.judge
-  );
+  // Scoreboard Modal (auto-shows after winner)
+  if (showScoreboard && roomData) {
+    return (
+      <ScoreboardModal
+        scores={roomData.scores}
+        players={roomData.players}
+        judge={roomData.judge}
+        onClose={() => setShowScoreboard(false)}
+      />
+    );
+  }
+
+  // Submissions, hide names
+  const submissions = Object.entries(roomData.submissions)
+    .filter(([player]) => player !== roomData.judge)
+    .map(([player, curse], idx) => ({
+      key: player,
+      curse,
+      anonymizedId: `Card #${idx + 1}`,
+    }));
 
   // Can only pick a winner when all non-judge players have submitted
-  const allSubmitted =
-    submissions.length === roomData.players.length - 1 &&
-    submissions.every(([, curse]) => curse);
+  const allSubmitted = submissions.length === roomData.players.length - 1 &&
+    submissions.every((s) => s.curse);
 
   const handlePickWinner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,8 +110,8 @@ const JudgeView: React.FC = () => {
     try {
       await pickWinner(selectedWinner);
       playSound('win');
-    } catch (_e) {
-      console.error('Error picking winner:', _e);
+    } catch (err) {
+      console.error('Error picking winner:', err);
       playSound('error');
     } finally {
       setSubmitting(false);
@@ -109,25 +131,25 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map(([player, curse]) => (
+            {submissions.map((submission, idx) => (
               <div
-                key={player}
+                key={submission.key}
                 className={`curse-card cursor-pointer ${
-                  selectedWinner === player ? 'border-yellow-500 bg-yellow-900/30' : ''
+                  selectedWinner === submission.key ? 'border-yellow-500 bg-yellow-900/30' : ''
                 }`}
-                onClick={() => setSelectedWinner(player)}
+                onClick={() => setSelectedWinner(submission.key)}
               >
                 <label className="flex items-start cursor-pointer">
                   <input
                     type="radio"
                     name="winner"
-                    value={player}
-                    checked={selectedWinner === player}
-                    onChange={() => setSelectedWinner(player)}
+                    value={submission.key}
+                    checked={selectedWinner === submission.key}
+                    onChange={() => setSelectedWinner(submission.key)}
                     className="mt-1 mr-3"
                   />
                   <span>
-                    <span className="font-bold text-yellow-300">{player}</span>: {curse}
+                    <span className="font-bold text-yellow-300">{submission.anonymizedId}</span>: {submission.curse}
                   </span>
                 </label>
               </div>
