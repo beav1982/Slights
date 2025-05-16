@@ -1,6 +1,7 @@
 // src/lib/gameData.ts
 
-export const HAND_SIZE = 5; slights = [
+export const HAND_SIZE = 5; 
+export const slights = [
   "I didn’t use my turn signal when changing lanes.",
   "I listened to my music on a Bluetooth speaker in public.",
   "I put an empty milk jug in the fridge.",
