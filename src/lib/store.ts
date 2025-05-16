@@ -2,25 +2,10 @@
 
 import { create } from 'zustand';
 // IMPORTANT: Assuming your updated redis.ts exports functions like clientKvGet, clientKvSet, clientKvDelete
+// which internally call your Next.js API routes (e.g., /api/kv/set)
 import { clientKvGet, clientKvSet, clientKvDelete } from './redis';
-import { HAND_SIZE, curses, drawHand, drawRandom, nextJudge, slights } from '../lib/gameData';
+import { HAND_SIZE, curses, drawRandom, nextJudge, slights } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
-
-// --- Unique Hand Helper ---
-function drawUniqueHand(
-  allCurses: string[],
-  alreadyDealt: string[],
-  handSize: number
-): string[] {
-  const available = allCurses.filter((c) => !alreadyDealt.includes(c));
-  const shuffled = [...available].sort(() => Math.random() - 0.5);
-  if (shuffled.length < handSize) {
-    // Fallback: allow repeats if not enough left (MVP safety)
-    const reshuffled = [...allCurses].sort(() => Math.random() - 0.5);
-    return reshuffled.slice(0, handSize);
-  }
-  return shuffled.slice(0, handSize);
-}
 
 interface GameStore {
   session: GameSession;
@@ -107,7 +92,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // ---- ROOM CREATION ----
   createRoom: async (roomCode, alias) => {
     const code = roomCode.toUpperCase();
     console.log(`[store.ts] createRoom: Attempting for room ${code}, alias ${alias}`);
@@ -117,13 +101,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       await clientKvSet(`room:${code}:scores`, JSON.stringify({ [alias]: 0 }));
       await clientKvSet(`room:${code}:round`, '1');
       await clientKvSet(`room:${code}:slight`, drawRandom(slights));
-
-      // Unique hand logic
-      const initialHand = drawUniqueHand(curses, [], HAND_SIZE);
-      await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(initialHand));
-      await clientKvSet(`room:${code}:dealtCurses`, JSON.stringify(initialHand));
-
+      await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawRandom(curses, HAND_SIZE)));
       console.log(`[store.ts] createRoom: All KV operations complete for room ${code}`);
+
       set({ session: { name: alias, room: code } });
       await get().loadRoomData(code);
     } catch (error) {
@@ -132,7 +112,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // ---- JOIN ROOM ----
   joinRoom: async (roomCode, alias) => {
     const code = roomCode.toUpperCase();
     console.log(`[store.ts] joinRoom: Attempting for room ${code}, alias ${alias}`);
@@ -156,16 +135,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         players.push(alias);
         scores[alias] = 0;
 
-        // Unique hand logic for joining
-        const dealtRaw = await clientKvGet(`room:${code}:dealtCurses`);
-        let dealtCurses: string[] = dealtRaw ? JSON.parse(dealtRaw) : [];
-        const newHand = drawUniqueHand(curses, dealtCurses, HAND_SIZE);
-        dealtCurses = dealtCurses.concat(newHand);
-
         await clientKvSet(`room:${code}:players`, JSON.stringify(players));
         await clientKvSet(`room:${code}:scores`, JSON.stringify(scores));
-        await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(newHand));
-        await clientKvSet(`room:${code}:dealtCurses`, JSON.stringify(dealtCurses));
+        await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawRandom(curses, HAND_SIZE)));
       }
       console.log(`[store.ts] joinRoom: Successfully processed join for ${alias} in room ${code}`);
 
@@ -177,39 +149,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // ---- SUBMIT CURSE ----
   submitCurse: async (curse) => {
     const { session, loadRoomData, playSound } = get();
     if (!session.room || !session.name) return;
     console.log(`[store.ts] submitCurse: ${session.name} submitting '${curse}' for room ${session.room}`);
     try {
-      // Save the submitted curse
       await clientKvSet(`room:${session.room}:submission:${session.name}`, curse);
 
-      // Unique discard/replace logic
       const handRaw = await clientKvGet(`room:${session.room}:hand:${session.name}`);
-      let hand = handRaw ? JSON.parse(handRaw) : [];
-      // Remove submitted curse from hand (first occurrence)
+      const hand = handRaw ? JSON.parse(handRaw) : [];
+
       const submittedIndex = hand.indexOf(curse);
       if (submittedIndex !== -1) hand.splice(submittedIndex, 1);
 
-      // Update dealtCurses (remove old hand, add new curse)
-      const dealtRaw = await clientKvGet(`room:${session.room}:dealtCurses`);
-      let dealtCurses: string[] = dealtRaw ? JSON.parse(dealtRaw) : [];
-      dealtCurses = dealtCurses.filter(c => !hand.includes(c) && c !== curse);
-
-      // Draw new unique curse to refill to HAND_SIZE
       if (hand.length < HAND_SIZE) {
-        const notDealt = curses.filter(c => !hand.includes(c) && !dealtCurses.includes(c));
-        const newCurse = drawRandom(notDealt.length > 0 ? notDealt : curses);
-        if (newCurse) {
-          hand.push(newCurse);
-          dealtCurses.push(newCurse);
-        }
+        const possibleCurses = curses.filter(c => !hand.includes(c));
+        const newCurse = drawRandom(possibleCurses.length > 0 ? possibleCurses : curses);
+        if (newCurse) hand.push(newCurse);
       }
 
       await clientKvSet(`room:${session.room}:hand:${session.name}`, JSON.stringify(hand));
-      await clientKvSet(`room:${session.room}:dealtCurses`, JSON.stringify(dealtCurses));
+
       await loadRoomData(session.room);
       playSound('submit');
     } catch (error) {
@@ -218,30 +178,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // ---- REDRAW HAND ----
   redrawHand: async () => {
     const { session, loadRoomData } = get();
     if (!session.room || !session.name) return;
     console.log(`[store.ts] redrawHand: ${session.name} redrawing hand for room ${session.room}`);
     try {
-      // Remove player's old hand from dealtCurses
-      const dealtRaw = await clientKvGet(`room:${session.room}:dealtCurses`);
-      let dealtCurses: string[] = dealtRaw ? JSON.parse(dealtRaw) : [];
-      const oldHandRaw = await clientKvGet(`room:${session.room}:hand:${session.name}`);
-      const oldHand = oldHandRaw ? JSON.parse(oldHandRaw) : [];
-      dealtCurses = dealtCurses.filter(c => !oldHand.includes(c));
-
-      // Draw new unique hand
-      const newHand = drawUniqueHand(curses, dealtCurses, HAND_SIZE);
-      dealtCurses = dealtCurses.concat(newHand);
-
       await clientKvSet(
         `room:${session.room}:hand:${session.name}`,
-        JSON.stringify(newHand)
-      );
-      await clientKvSet(
-        `room:${session.room}:dealtCurses`,
-        JSON.stringify(dealtCurses)
+        JSON.stringify(drawRandom(curses, HAND_SIZE))
       );
       await loadRoomData(session.room);
     } catch (error) {
@@ -250,7 +194,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // ---- PICK WINNER & RESET DEALT ----
   pickWinner: async (winner) => {
     const { session, roomData, loadRoomData, playSound } = get();
     if (!session.room || !roomData || !session.name) return;
@@ -259,7 +202,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const scores = { ...roomData.scores };
       scores[winner] = (scores[winner] || 0) + 1;
 
-      // Winner Reveal
       await clientKvSet(
         `room:${session.room}:lastWinner`,
         JSON.stringify({
@@ -273,9 +215,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
         clientKvSet(`room:${session.room}:slight`, drawRandom(slights)),
         clientKvSet(`room:${session.room}:judge`, nextJudge(roomData.players, roomData.judge)),
-        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`)),
-        // --- RESET dealtCurses for next round! ---
-        clientKvSet(`room:${session.room}:dealtCurses`, JSON.stringify([])),
+        ...roomData.players.map((player) =>
+          clientKvDelete(`room:${session.room}:submission:${player}`)
+        )
       ]);
 
       playSound('win');
