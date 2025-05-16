@@ -10,11 +10,11 @@ const PlayerView: React.FC = () => {
   const [wantRedraw, setWantRedraw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Winner reveal state
   const [showWinner, setShowWinner] = useState(false);
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
   const [showScoreboard, setShowScoreboard] = useState(false);
 
+  const winnerRef = useRef<string | null>(null);
   const soundPlayedRef = useRef(false);
 
   const session = useGameStore(state => state.session);
@@ -25,16 +25,6 @@ const PlayerView: React.FC = () => {
 
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll room data every 5 seconds
-  useEffect(() => {
-    if (!session.room) return;
-    const intervalId = setInterval(() => {
-      loadRoomData(session.room);
-    }, 5000);
-    return () => clearInterval(intervalId);
-  }, [session.room, loadRoomData]);
-
-  // Poll winner reveal modal
   useEffect(() => {
     if (!session.room) return;
 
@@ -43,7 +33,8 @@ const PlayerView: React.FC = () => {
       if (result) {
         try {
           const data = JSON.parse(result);
-          if (!winnerData || winnerData.winner !== data.winner) {
+          if (winnerRef.current !== data.winner) {
+            winnerRef.current = data.winner;
             setWinnerData(data);
             setShowWinner(true);
             if (!soundPlayedRef.current) {
@@ -59,9 +50,10 @@ const PlayerView: React.FC = () => {
 
     return () => {
       clearInterval(interval);
-      soundPlayedRef.current = false; // Reset sound flag on unmount/room change
+      winnerRef.current = null;
+      soundPlayedRef.current = false;
     };
-  }, [session.room, winnerData, playSound]);
+  }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
@@ -74,7 +66,7 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard after closing winner modal
+          setShowScoreboard(true);
         }}
       />
     );
@@ -86,7 +78,11 @@ const PlayerView: React.FC = () => {
       <ScoreboardModal
         scores={roomData.scores}
         judge={roomData.judge}
-        onClose={() => setShowScoreboard(false)}
+        onClose={() => {
+          setShowScoreboard(false);
+          winnerRef.current = null;
+          soundPlayedRef.current = false;
+        }}
       />
     );
   }

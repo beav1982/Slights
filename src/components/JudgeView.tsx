@@ -12,6 +12,7 @@ const JudgeView: React.FC = () => {
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
   const [showScoreboard, setShowScoreboard] = useState(false);
 
+  const winnerRef = useRef<string | null>(null);
   const soundPlayedRef = useRef(false);
 
   const session = useGameStore(state => state.session);
@@ -21,16 +22,6 @@ const JudgeView: React.FC = () => {
 
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll room data every 5 seconds
-  useEffect(() => {
-    if (!session.room) return;
-    const intervalId = setInterval(() => {
-      loadRoomData(session.room);
-    }, 5000);
-    return () => clearInterval(intervalId);
-  }, [session.room, loadRoomData]);
-
-  // Poll winner reveal modal
   useEffect(() => {
     if (!session.room) return;
 
@@ -39,7 +30,8 @@ const JudgeView: React.FC = () => {
       if (result) {
         try {
           const data = JSON.parse(result);
-          if (!winnerData || winnerData.winner !== data.winner) {
+          if (winnerRef.current !== data.winner) {
+            winnerRef.current = data.winner;
             setWinnerData(data);
             setShowWinner(true);
             if (!soundPlayedRef.current) {
@@ -48,16 +40,17 @@ const JudgeView: React.FC = () => {
             }
           }
         } catch {
-          // Ignore JSON parse errors
+          // ignore parse errors
         }
       }
     }, 1000);
 
     return () => {
       clearInterval(interval);
-      soundPlayedRef.current = false; // Reset sound flag on unmount/room change
+      winnerRef.current = null;
+      soundPlayedRef.current = false;
     };
-  }, [session.room, winnerData, playSound]);
+  }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
@@ -82,10 +75,16 @@ const JudgeView: React.FC = () => {
       <ScoreboardModal
         scores={roomData.scores}
         judge={roomData.judge}
-        onClose={() => setShowScoreboard(false)}
+        onClose={() => {
+          setShowScoreboard(false);
+          winnerRef.current = null; // Reset so next winner can trigger modal
+          soundPlayedRef.current = false; // Reset sound flag
+        }}
       />
     );
   }
+
+  // ...rest of JudgeView code unchanged (submissions, pick winner form, etc.)
 
   // Submissions, hide names, anonymize cards
   const submissions = Object.entries(roomData.submissions)
