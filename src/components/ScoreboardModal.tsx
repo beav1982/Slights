@@ -2,12 +2,11 @@ import React from 'react';
 
 interface ScoreboardModalProps {
   scores: Record<string, number>;
-  players: string[];
   judge: string;
   onClose: () => void;
 }
 
-const ScoreboardModal: React.FC<ScoreboardModalProps> = ({ scores, players, judge, onClose }) => {
+const ScoreboardModal: React.FC<ScoreboardModalProps> = ({ scores, judge, onClose }) => {
   const sortedScores = Object.entries(scores)
     .sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
 

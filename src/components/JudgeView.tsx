@@ -93,10 +93,10 @@ const JudgeView: React.FC = () => {
   // Submissions, hide names
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
-    .map(([player, curse], idx) => ({
+    .map(([player, curse], _idx) => ({
       key: player,
       curse,
-      anonymizedId: `Card #${idx + 1}`,
+      anonymizedId: `Card #${_idx + 1}`,
     }));
 
   // Can only pick a winner when all non-judge players have submitted
@@ -131,7 +131,7 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map((submission, idx) => (
+            {submissions.map((submission, _idx) => (
               <div
                 key={submission.key}
                 className={`curse-card cursor-pointer ${
