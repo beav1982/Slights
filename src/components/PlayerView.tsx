@@ -21,7 +21,6 @@ const PlayerView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
-  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
@@ -57,7 +56,6 @@ const PlayerView: React.FC = () => {
 
   if (!roomData || !session.name) return null;
 
-  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -72,7 +70,6 @@ const PlayerView: React.FC = () => {
     );
   }
 
-  // Scoreboard Modal (stay until user closes)
   if (showScoreboard && roomData) {
     return (
       <ScoreboardModal
