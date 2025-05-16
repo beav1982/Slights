@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
-import { clientKvGet, clientKvDelete } from '../lib/redis';
+import { clientKvGet } from '../lib/redis';
 import WinningReveal from './WinningReveal';
 import ScoreboardModal from './ScoreboardModal';
 
