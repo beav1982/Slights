@@ -77,15 +77,16 @@ const JudgeView: React.FC = () => {
   }
 
   // Scoreboard Modal (stay until player closes)
-  if (showScoreboard && roomData) {
-    return (
-      <ScoreboardModal
-        scores={roomData.scores}
-        judge={roomData.judge}
-        onClose={() => setShowScoreboard(false)}
-      />
-    );
-  }
+if (showScoreboard && roomData) {
+  return (
+    <ScoreboardModal
+      scores={roomData.scores}
+      players={roomData.players}   {/* Add this */}
+      judge={roomData.judge}
+      onClose={() => setShowScoreboard(false)}
+    />
+  );
+}
 
   // Submissions, hide names
   const submissions = Object.entries(roomData.submissions)
