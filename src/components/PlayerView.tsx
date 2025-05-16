@@ -21,10 +21,19 @@ const PlayerView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
-  
+  const loadRoomData = useGameStore(state => state.loadRoomData);
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll winner from backend every second
+  // Poll room data every 5 seconds to keep hand and submissions updated
+  useEffect(() => {
+    if (!session.room) return;
+    const interval = setInterval(() => {
+      loadRoomData(session.room);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [session.room, loadRoomData]);
+
+  // Poll winner info every 1 second for reveal modal and sound
   useEffect(() => {
     if (!session.room) return;
 
@@ -48,12 +57,13 @@ const PlayerView: React.FC = () => {
       }
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
-  // Show winner reveal modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -62,14 +72,13 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard, let user close manually
-          // Do NOT reset winnerRef or soundPlayedRef here
+          setShowScoreboard(true); // Show scoreboard after winner reveal
+          // Don't reset refs here to avoid retrigger
         }}
       />
     );
   }
 
-  // Show scoreboard modal (stay until user closes)
   if (showScoreboard) {
     return (
       <ScoreboardModal
@@ -77,7 +86,7 @@ const PlayerView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null;  // Reset for next winner detection
+          winnerRef.current = null; // Reset for next winner
           soundPlayedRef.current = false;
         }}
       />
