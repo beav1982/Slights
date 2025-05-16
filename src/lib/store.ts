@@ -4,7 +4,7 @@ import { create } from 'zustand';
 // IMPORTANT: Assuming your updated redis.ts exports functions like clientKvGet, clientKvSet, clientKvDelete
 // which internally call your Next.js API routes (e.g., /api/kv/set)
 import { clientKvGet, clientKvSet } from './redis';
-import { HAND_SIZE, curses, drawHand, drawRandom } from '../lib/gameData';
+import { HAND_SIZE, curses, drawHand, drawRandom, nextJudge, slights } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
 
 interface GameStore {
