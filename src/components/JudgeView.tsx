@@ -30,7 +30,7 @@ const JudgeView: React.FC = () => {
     return () => clearInterval(interval);
   }, [session.room, loadRoomData]);
 
-  // Poll winner info every 1 second for winner reveal modal and sound
+  // Poll winner info every 1 second for winner reveal and sound
   useEffect(() => {
     if (!session.room) return;
 
@@ -61,6 +61,7 @@ const JudgeView: React.FC = () => {
 
   if (!roomData || !session.name) return null;
 
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -69,13 +70,14 @@ const JudgeView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard after winner reveal
-          // Don't reset refs here to prevent retriggering
+          setShowScoreboard(true);
+          // Do NOT reset refs here to prevent retriggering sound/modal
         }}
       />
     );
   }
 
+  // Scoreboard Modal
   if (showScoreboard) {
     return (
       <ScoreboardModal
@@ -83,14 +85,15 @@ const JudgeView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null; // Reset for next winner
+          // Reset refs here so next winner triggers correctly
+          winnerRef.current = null;
           soundPlayedRef.current = false;
         }}
       />
     );
   }
 
-  // Prepare submissions (exclude judge), anonymize for display
+  // Filter submissions to exclude judge’s own (fix for wrong point awarding)
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
     .map(([player, curse], idx) => ({
@@ -108,6 +111,10 @@ const JudgeView: React.FC = () => {
     if (!selectedWinner) return;
     setSubmitting(true);
     try {
+      // Pick only from non-judge submissions, so winner can’t be judge
+      if (selectedWinner === roomData.judge) {
+        throw new Error("Judge can't be picked as winner");
+      }
       await pickWinner(selectedWinner);
       playSound('win');
     } catch (err) {

@@ -72,7 +72,7 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard after winner reveal
+          setShowScoreboard(true);
           // Don't reset refs here to avoid retrigger
         }}
       />
@@ -86,7 +86,7 @@ const PlayerView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null; // Reset for next winner
+          winnerRef.current = null;  // Reset for next winner
           soundPlayedRef.current = false;
         }}
       />
