@@ -38,21 +38,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadRoomData: async (roomCode: string) => {
     console.log(`[store.ts] loadRoomData: Loading room ${roomCode}`);
     try {
-      const [judge, playersJson, scoresJson, round, slight] = await Promise.all([
-        clientKvGet(`room:${roomCode}:judge`),
-        clientKvGet(`room:${roomCode}:players`),
-        clientKvGet(`room:${roomCode}:scores`),
-        clientKvGet(`room:${roomCode}:round`),
-        clientKvGet(`room:${roomCode}:slight`)
-      ]);
+      const keys = [
+        `room:${roomCode}:judge`,
+        `room:${roomCode}:players`,
+        `room:${roomCode}:scores`,
+        `room:${roomCode}:round`,
+        `room:${roomCode}:slight`,
+      ];
+      const [judge, playersJson, scoresJson, round, slight] = await Promise.all(
+        keys.map(k => clientKvGet(k))
+      );
 
-      if (!judge || !playersJson || !scoresJson || !round || !slight) {
+      if ([judge, playersJson, scoresJson, round, slight].some(v => !v)) {
         console.error(`[store.ts] loadRoomData: Incomplete room data for ${roomCode}`);
         throw new Error('Incomplete room data');
       }
 
-      const players = JSON.parse(playersJson);
-      const scores = JSON.parse(scoresJson);
+      const players = JSON.parse(playersJson as string);
+      const scores = JSON.parse(scoresJson as string);
       const submissions: Record<string, string> = {};
 
       await Promise.all(
@@ -71,11 +74,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       set({
         roomData: {
-          judge,
+          judge: judge as string,
           players,
           scores,
-          round: parseInt(round),
-          slight,
+          round: parseInt(round as string, 10),
+          slight: slight as string,
           submissions,
           hands
         }

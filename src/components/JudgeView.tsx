@@ -18,16 +18,18 @@ const JudgeView: React.FC = () => {
   const session = useGameStore(state => state.session);
   const roomData = useGameStore(state => state.roomData);
   const pickWinner = useGameStore(state => state.pickWinner);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
+  // Poll for winner updates every second
   useEffect(() => {
     if (!session.room) return;
 
     const interval = setInterval(async () => {
-      const result = await clientKvGet(`room:${session.room}:lastWinner`);
-      if (result) {
-        try {
+      try {
+        const result = await clientKvGet(`room:${session.room}:lastWinner`);
+        if (result) {
           const data = JSON.parse(result);
           if (winnerRef.current !== data.winner) {
             winnerRef.current = data.winner;
@@ -38,9 +40,9 @@ const JudgeView: React.FC = () => {
               soundPlayedRef.current = true;
             }
           }
-        } catch {
-          // ignore parse errors
         }
+      } catch {
+        // Ignore JSON parse errors
       }
     }, 1000);
 
@@ -51,8 +53,18 @@ const JudgeView: React.FC = () => {
     };
   }, [session.room, playSound]);
 
+  // Poll room data every 5 seconds
+  useEffect(() => {
+    if (!session.room) return;
+    const intervalId = setInterval(() => {
+      loadRoomData(session.room).catch(console.error);
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [session.room, loadRoomData]);
+
   if (!roomData || !session.name) return null;
 
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -61,13 +73,14 @@ const JudgeView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true);
+          setShowScoreboard(true); // Show scoreboard after closing winner modal
         }}
       />
     );
   }
 
-  if (showScoreboard && roomData) {
+  // Scoreboard Modal (stay until user closes)
+  if (showScoreboard) {
     return (
       <ScoreboardModal
         scores={roomData.scores}

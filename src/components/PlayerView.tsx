@@ -14,6 +14,7 @@ const PlayerView: React.FC = () => {
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
   const [showScoreboard, setShowScoreboard] = useState(false);
 
+  // Track last winner to avoid repeat sound and modal flicker
   const winnerRef = useRef<string | null>(null);
   const soundPlayedRef = useRef(false);
 
@@ -21,16 +22,18 @@ const PlayerView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
+  // Poll for winner updates every second
   useEffect(() => {
     if (!session.room) return;
 
     const interval = setInterval(async () => {
-      const result = await clientKvGet(`room:${session.room}:lastWinner`);
-      if (result) {
-        try {
+      try {
+        const result = await clientKvGet(`room:${session.room}:lastWinner`);
+        if (result) {
           const data = JSON.parse(result);
           if (winnerRef.current !== data.winner) {
             winnerRef.current = data.winner;
@@ -41,9 +44,9 @@ const PlayerView: React.FC = () => {
               soundPlayedRef.current = true;
             }
           }
-        } catch {
-          // Ignore parse errors
         }
+      } catch {
+        // Ignore JSON parse errors
       }
     }, 1000);
 
@@ -54,8 +57,18 @@ const PlayerView: React.FC = () => {
     };
   }, [session.room, playSound]);
 
+  // Poll room data every 5 seconds for updates (hand, submissions, etc.)
+  useEffect(() => {
+    if (!session.room) return;
+    const intervalId = setInterval(() => {
+      loadRoomData(session.room).catch(console.error);
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [session.room, loadRoomData]);
+
   if (!roomData || !session.name) return null;
 
+  // Show winner modal first
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -64,13 +77,14 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true);
+          setShowScoreboard(true); // Show scoreboard after closing winner modal
         }}
       />
     );
   }
 
-  if (showScoreboard && roomData) {
+  // Show scoreboard until user closes it
+  if (showScoreboard) {
     return (
       <ScoreboardModal
         scores={roomData.scores}
@@ -90,7 +104,6 @@ const PlayerView: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-
     try {
       if (wantRedraw) {
         await redrawHand();
