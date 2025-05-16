@@ -21,7 +21,7 @@ const JudgeView: React.FC = () => {
 
   const playSound = useSoundStore(state => state.playSound);
 
-  // Polling: Reload room data every 5 seconds
+  // Poll room data every 5 seconds
   useEffect(() => {
     if (!session.room) return;
     const intervalId = setInterval(() => {
@@ -30,7 +30,7 @@ const JudgeView: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [session.room, loadRoomData]);
 
-  // Polling: Winner reveal modal (judge clears winner key)
+  // Poll winner reveal modal
   useEffect(() => {
     if (!session.room) return;
 
@@ -47,15 +47,15 @@ const JudgeView: React.FC = () => {
               soundPlayedRef.current = true;
             }
           }
-        } catch (_e) {
-          // ignore JSON parse errors or deletion errors
+        } catch {
+          // Ignore JSON parse errors
         }
       }
     }, 1000);
 
     return () => {
       clearInterval(interval);
-      soundPlayedRef.current = false;
+      soundPlayedRef.current = false; // Reset sound flag on unmount/room change
     };
   }, [session.room, winnerData, playSound]);
 
@@ -70,26 +70,24 @@ const JudgeView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true);
+          setShowScoreboard(true); // Show scoreboard after closing winner modal
         }}
       />
     );
   }
 
-  // Scoreboard Modal (stay until player closes)
+  // Scoreboard Modal (stay until user closes)
   if (showScoreboard && roomData) {
-    // Add players prop to ScoreboardModal
     return (
       <ScoreboardModal
         scores={roomData.scores}
-        players={roomData.players}
         judge={roomData.judge}
         onClose={() => setShowScoreboard(false)}
       />
     );
   }
 
-  // Submissions, hide names
+  // Submissions, hide names, anonymize cards
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
     .map(([player, curse], idx) => ({
@@ -131,7 +129,7 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map((submission) => (
+            {submissions.map(submission => (
               <div
                 key={submission.key}
                 className={`curse-card cursor-pointer ${
