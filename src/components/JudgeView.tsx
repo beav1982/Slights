@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
 import { clientKvGet, clientKvDelete } from '../lib/redis';
@@ -11,6 +11,8 @@ const JudgeView: React.FC = () => {
   const [showWinner, setShowWinner] = useState(false);
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
   const [showScoreboard, setShowScoreboard] = useState(false);
+
+  const soundPlayedRef = useRef(false);
 
   const session = useGameStore(state => state.session);
   const roomData = useGameStore(state => state.roomData);
@@ -31,37 +33,31 @@ const JudgeView: React.FC = () => {
   // Polling: Winner reveal modal (judge clears winner key)
   useEffect(() => {
     if (!session.room) return;
-    let soundPlayed = false;
+
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
         try {
           const data = JSON.parse(result);
-          setWinnerData(prev => {
-            if (!prev || prev.winner !== data.winner) {
-              setShowWinner(true);
-              if (!soundPlayed) {
-                playSound('win');
-                soundPlayed = true;
-              }
-              setTimeout(async () => {
-                setShowWinner(false);
-                setWinnerData(null);
-                await clientKvDelete(`room:${session.room}:lastWinner`);
-                setShowScoreboard(true);
-                setTimeout(() => setShowScoreboard(false), 5000);
-              }, 5000);
-              return data;
+          if (!winnerData || winnerData.winner !== data.winner) {
+            setWinnerData(data);
+            setShowWinner(true);
+            if (!soundPlayedRef.current) {
+              playSound('win');
+              soundPlayedRef.current = true;
             }
-            return prev;
-          });
+          }
         } catch (_e) {
           // ignore JSON parse errors or deletion errors
         }
       }
     }, 1000);
-    return () => clearInterval(interval);
-  }, [session.room, playSound]);
+
+    return () => {
+      clearInterval(interval);
+      soundPlayedRef.current = false;
+    };
+  }, [session.room, winnerData, playSound]);
 
   if (!roomData || !session.name) return null;
 
@@ -75,13 +71,12 @@ const JudgeView: React.FC = () => {
           setShowWinner(false);
           setWinnerData(null);
           setShowScoreboard(true);
-          setTimeout(() => setShowScoreboard(false), 5000);
         }}
       />
     );
   }
 
-  // Scoreboard Modal (auto-shows after winner)
+  // Scoreboard Modal (stay until player closes)
   if (showScoreboard && roomData) {
     return (
       <ScoreboardModal
@@ -95,16 +90,16 @@ const JudgeView: React.FC = () => {
   // Submissions, hide names
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
-    .map(([player, curse], _idx) => ({
+    .map(([player, curse], idx) => ({
       key: player,
       curse,
-      anonymizedId: `Card #${_idx + 1}`,
+      anonymizedId: `Card #${idx + 1}`,
     }));
 
   // Can only pick a winner when all non-judge players have submitted
   const allSubmitted =
     submissions.length === roomData.players.length - 1 &&
-    submissions.every((s) => s.curse);
+    submissions.every(s => s.curse);
 
   const handlePickWinner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,13 +129,11 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map((submission, _idx) => (
+            {submissions.map((submission, idx) => (
               <div
                 key={submission.key}
                 className={`curse-card cursor-pointer ${
-                  selectedWinner === submission.key
-                    ? 'border-yellow-500 bg-yellow-900/30'
-                    : ''
+                  selectedWinner === submission.key ? 'border-yellow-500 bg-yellow-900/30' : ''
                 }`}
                 onClick={() => setSelectedWinner(submission.key)}
               >
@@ -154,10 +147,7 @@ const JudgeView: React.FC = () => {
                     className="mt-1 mr-3"
                   />
                   <span>
-                    <span className="font-bold text-yellow-300">
-                      {submission.anonymizedId}
-                    </span>
-                    : {submission.curse}
+                    <span className="font-bold text-yellow-300">{submission.anonymizedId}</span>: {submission.curse}
                   </span>
                 </label>
               </div>

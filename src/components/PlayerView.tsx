@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
 import { clientKvGet } from '../lib/redis';
@@ -15,15 +15,17 @@ const PlayerView: React.FC = () => {
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
   const [showScoreboard, setShowScoreboard] = useState(false);
 
-  const session = useGameStore((state) => state.session);
-  const roomData = useGameStore((state) => state.roomData);
-  const submitCurse = useGameStore((state) => state.submitCurse);
-  const redrawHand = useGameStore((state) => state.redrawHand);
-  const loadRoomData = useGameStore((state) => state.loadRoomData);
+  const soundPlayedRef = useRef(false);
 
-  const playSound = useSoundStore((state) => state.playSound);
+  const session = useGameStore(state => state.session);
+  const roomData = useGameStore(state => state.roomData);
+  const submitCurse = useGameStore(state => state.submitCurse);
+  const redrawHand = useGameStore(state => state.redrawHand);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
-  // Polling: Reload room data every 5 seconds
+  const playSound = useSoundStore(state => state.playSound);
+
+  // Poll room data every 5 seconds
   useEffect(() => {
     if (!session.room) return;
     const intervalId = setInterval(() => {
@@ -32,39 +34,34 @@ const PlayerView: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [session.room, loadRoomData]);
 
-  // Polling: Winner reveal modal
+  // Poll winner reveal modal
   useEffect(() => {
     if (!session.room) return;
-    let soundPlayed = false; // Play win sound only once per winner
+
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
         try {
           const data = JSON.parse(result);
-          setWinnerData(prev => {
-            if (!prev || prev.winner !== data.winner) {
-              setShowWinner(true);
-              if (!soundPlayed) {
-                playSound('win');
-                soundPlayed = true;
-              }
-              setTimeout(() => {
-                setShowWinner(false);
-                setWinnerData(null);
-                setShowScoreboard(true);
-                setTimeout(() => setShowScoreboard(false), 5000);
-              }, 5000);
-              return data;
+          if (!winnerData || winnerData.winner !== data.winner) {
+            setWinnerData(data);
+            setShowWinner(true);
+            if (!soundPlayedRef.current) {
+              playSound('win');
+              soundPlayedRef.current = true;
             }
-            return prev;
-          });
+          }
         } catch {
-          // ignore parse errors
+          // Ignore parse errors
         }
       }
     }, 1000);
-    return () => clearInterval(interval);
-  }, [session.room, playSound]);
+
+    return () => {
+      clearInterval(interval);
+      soundPlayedRef.current = false; // Reset on unmount or room change
+    };
+  }, [session.room, winnerData, playSound]);
 
   if (!roomData || !session.name) return null;
 
@@ -77,18 +74,18 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true);
-          setTimeout(() => setShowScoreboard(false), 5000);
+          setShowScoreboard(true); // Show scoreboard after closing winner modal
         }}
       />
     );
   }
 
-  // Scoreboard Modal (auto-shows after winner)
+  // Scoreboard Modal (stay until player closes)
   if (showScoreboard && roomData) {
     return (
       <ScoreboardModal
         scores={roomData.scores}
+        players={roomData.players}
         judge={roomData.judge}
         onClose={() => setShowScoreboard(false)}
       />
@@ -112,8 +109,8 @@ const PlayerView: React.FC = () => {
         await submitCurse(selectedCurse);
         playSound('submit');
       }
-    } catch (_e) {
-      console.error('Error submitting:', _e);
+    } catch (err) {
+      console.error('Error submitting:', err);
       playSound('error');
     } finally {
       setSubmitting(false);
@@ -184,11 +181,7 @@ const PlayerView: React.FC = () => {
           className="btn-primary w-full md:w-auto"
           disabled={submitting || (!selectedCurse && !wantRedraw)}
         >
-          {submitting
-            ? 'Submitting...'
-            : wantRedraw
-            ? 'Redraw Hand'
-            : 'Submit Curse'}
+          {submitting ? 'Submitting...' : wantRedraw ? 'Redraw Hand' : 'Submit Curse'}
         </button>
       </form>
     </div>
