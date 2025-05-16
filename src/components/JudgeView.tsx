@@ -10,14 +10,14 @@ const JudgeView: React.FC = () => {
 
   // Winner reveal state
   const [showWinner, setShowWinner] = useState(false);
-  const [winnerData, setWinnerData] = useState<{ winner: string, curse: string } | null>(null);
+  const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
 
-  const session = useGameStore(state => state.session);
-  const roomData = useGameStore(state => state.roomData);
-  const pickWinner = useGameStore(state => state.pickWinner);
-  const loadRoomData = useGameStore(state => state.loadRoomData);
+  const session = useGameStore((state) => state.session);
+  const roomData = useGameStore((state) => state.roomData);
+  const pickWinner = useGameStore((state) => state.pickWinner);
+  const loadRoomData = useGameStore((state) => state.loadRoomData);
 
-  const playSound = useSoundStore(state => state.playSound);
+  const playSound = useSoundStore((state) => state.playSound);
 
   // Polling: Reload room data every 5 seconds
   useEffect(() => {
@@ -47,8 +47,8 @@ const JudgeView: React.FC = () => {
               await clientKvDelete(`room:${session.room}:lastWinner`);
             }, 5000);
           }
-        } catch (e) {
-          // ignore parse errors
+        } catch {
+          // ignore JSON parse errors or deletion errors
         }
       }
     }, 1000);
@@ -77,7 +77,8 @@ const JudgeView: React.FC = () => {
   );
 
   // Can only pick a winner when all non-judge players have submitted
-  const allSubmitted = submissions.length === roomData.players.length - 1 &&
+  const allSubmitted =
+    submissions.length === roomData.players.length - 1 &&
     submissions.every(([, curse]) => curse);
 
   const handlePickWinner = async (e: React.FormEvent) => {
@@ -87,8 +88,8 @@ const JudgeView: React.FC = () => {
     try {
       await pickWinner(selectedWinner);
       playSound('win');
-    } catch (err) {
-      console.error('Error picking winner:', err);
+    } catch (_e) {
+      console.error('Error picking winner:', _e);
       playSound('error');
     } finally {
       setSubmitting(false);
@@ -108,10 +109,12 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map(([player, curse], idx) => (
+            {submissions.map(([player, curse]) => (
               <div
                 key={player}
-                className={`curse-card cursor-pointer ${selectedWinner === player ? 'border-yellow-500 bg-yellow-900/30' : ''}`}
+                className={`curse-card cursor-pointer ${
+                  selectedWinner === player ? 'border-yellow-500 bg-yellow-900/30' : ''
+                }`}
                 onClick={() => setSelectedWinner(player)}
               >
                 <label className="flex items-start cursor-pointer">

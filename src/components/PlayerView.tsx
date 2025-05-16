@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
-import { clientKvGet, clientKvDelete } from '../lib/redis';
+import { clientKvGet } from '../lib/redis'; // Only import what's used!
 import WinningReveal from './WinningReveal';
 
 const PlayerView: React.FC = () => {
@@ -11,15 +11,15 @@ const PlayerView: React.FC = () => {
 
   // Winner reveal state
   const [showWinner, setShowWinner] = useState(false);
-  const [winnerData, setWinnerData] = useState<{ winner: string, curse: string } | null>(null);
+  const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
 
-  const session = useGameStore(state => state.session);
-  const roomData = useGameStore(state => state.roomData);
-  const submitCurse = useGameStore(state => state.submitCurse);
-  const redrawHand = useGameStore(state => state.redrawHand);
-  const loadRoomData = useGameStore(state => state.loadRoomData);
+  const session = useGameStore((state) => state.session);
+  const roomData = useGameStore((state) => state.roomData);
+  const submitCurse = useGameStore((state) => state.submitCurse);
+  const redrawHand = useGameStore((state) => state.redrawHand);
+  const loadRoomData = useGameStore((state) => state.loadRoomData);
 
-  const playSound = useSoundStore(state => state.playSound);
+  const playSound = useSoundStore((state) => state.playSound);
 
   // Polling: Reload room data every 5 seconds
   useEffect(() => {
@@ -47,7 +47,7 @@ const PlayerView: React.FC = () => {
               setWinnerData(null);
             }, 5000);
           }
-        } catch (e) {
+        } catch {
           // ignore parse errors
         }
       }
@@ -88,8 +88,8 @@ const PlayerView: React.FC = () => {
         await submitCurse(selectedCurse);
         playSound('submit');
       }
-    } catch (err) {
-      console.error('Error submitting:', err);
+    } catch (_e) {
+      console.error('Error submitting:', _e);
       playSound('error');
     } finally {
       setSubmitting(false);
@@ -119,7 +119,9 @@ const PlayerView: React.FC = () => {
           {playerHand.map((curse, index) => (
             <div
               key={index}
-              className={`curse-card animate-pop cursor-pointer ${selectedCurse === curse ? 'border-indigo-500 bg-gray-700' : ''}`}
+              className={`curse-card animate-pop cursor-pointer ${
+                selectedCurse === curse ? 'border-indigo-500 bg-gray-700' : ''
+              }`}
               onClick={() => {
                 setSelectedCurse(curse);
                 playSound('click');

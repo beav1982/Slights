@@ -150,7 +150,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  submitCurse: async (curse) => {
+ submitCurse: async (curse) => {
   const { session, loadRoomData, playSound } = get();
   if (!session.room || !session.name) return;
   console.log(`[store.ts] submitCurse: ${session.name} submitting '${curse}' for room ${session.room}`);
@@ -160,7 +160,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // 2. Get current hand
     const handRaw = await clientKvGet(`room:${session.room}:hand:${session.name}`);
-    let hand = handRaw ? JSON.parse(handRaw) : [];
+    const hand = handRaw ? JSON.parse(handRaw) : [];
 
     // 3. Remove submitted curse from hand (first occurrence only)
     const submittedIndex = hand.indexOf(curse);
@@ -186,6 +186,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     throw error;
   }
 },
+
 
 redrawHand: async () => {
   const { session, loadRoomData } = get();
