@@ -35,7 +35,6 @@ const PlayerView: React.FC = () => {
   // Polling: Winner reveal modal
   useEffect(() => {
     if (!session.room) return;
-    let soundPlayed = false; // Play win sound only once per winner
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
@@ -44,15 +43,12 @@ const PlayerView: React.FC = () => {
           if (!winnerData || winnerData.winner !== data.winner) {
             setWinnerData(data);
             setShowWinner(true);
-            if (!soundPlayed) {
-              playSound('win');
-              soundPlayed = true;
-            }
+            playSound('win');
             setTimeout(() => {
               setShowWinner(false);
               setWinnerData(null);
               setShowScoreboard(true);
-              setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard
+              setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
             }, 5000);
           }
         } catch {
@@ -61,7 +57,8 @@ const PlayerView: React.FC = () => {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [session.room, winnerData, playSound]);
+    // Only depend on session.room and playSound; winnerData is local to the closure
+  }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
@@ -75,7 +72,7 @@ const PlayerView: React.FC = () => {
           setShowWinner(false);
           setWinnerData(null);
           setShowScoreboard(true);
-          setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard
+          setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
         }}
       />
     );
@@ -86,7 +83,6 @@ const PlayerView: React.FC = () => {
     return (
       <ScoreboardModal
         scores={roomData.scores}
-        players={roomData.players}
         judge={roomData.judge}
         onClose={() => setShowScoreboard(false)}
       />

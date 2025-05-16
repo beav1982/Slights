@@ -31,7 +31,6 @@ const JudgeView: React.FC = () => {
   // Polling: Winner reveal modal (judge clears winner key)
   useEffect(() => {
     if (!session.room) return;
-    let soundPlayed = false;
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
@@ -40,10 +39,7 @@ const JudgeView: React.FC = () => {
           if (!winnerData || winnerData.winner !== data.winner) {
             setWinnerData(data);
             setShowWinner(true);
-            if (!soundPlayed) {
-              playSound('win');
-              soundPlayed = true;
-            }
+            playSound('win');
             setTimeout(async () => {
               setShowWinner(false);
               setWinnerData(null);
@@ -52,13 +48,14 @@ const JudgeView: React.FC = () => {
               setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
             }, 5000);
           }
-        } catch (_e) {
+        } catch {
           // ignore JSON parse errors or deletion errors
         }
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [session.room, winnerData, playSound]);
+    // Only depend on session.room and playSound; winnerData is local to the closure
+  }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
@@ -83,7 +80,6 @@ const JudgeView: React.FC = () => {
     return (
       <ScoreboardModal
         scores={roomData.scores}
-        players={roomData.players}
         judge={roomData.judge}
         onClose={() => setShowScoreboard(false)}
       />
@@ -93,10 +89,10 @@ const JudgeView: React.FC = () => {
   // Submissions, hide names
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
-    .map(([player, curse], _idx) => ({
+    .map(([player, curse], idx) => ({
       key: player,
       curse,
-      anonymizedId: `Card #${_idx + 1}`,
+      anonymizedId: `Card #${idx + 1}`,
     }));
 
   // Can only pick a winner when all non-judge players have submitted
@@ -131,7 +127,7 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map((submission, _idx) => (
+            {submissions.map((submission) => (
               <div
                 key={submission.key}
                 className={`curse-card cursor-pointer ${

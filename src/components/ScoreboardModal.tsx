@@ -7,8 +7,7 @@ interface ScoreboardModalProps {
 }
 
 const ScoreboardModal: React.FC<ScoreboardModalProps> = ({ scores, judge, onClose }) => {
-  const sortedScores = Object.entries(scores)
-    .sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
+  const sortedScores = Object.entries(scores).sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fade-in">
@@ -16,7 +15,10 @@ const ScoreboardModal: React.FC<ScoreboardModalProps> = ({ scores, judge, onClos
         <h2 className="text-2xl font-bold mb-4 text-indigo-200">Scoreboard</h2>
         <ul className="space-y-2 mb-6">
           {sortedScores.map(([player, score]) => (
-            <li key={player} className="flex items-center justify-between px-4 py-1 rounded bg-gray-800/60">
+            <li
+              key={player}
+              className="flex items-center justify-between px-4 py-1 rounded bg-gray-800/60"
+            >
               <span className={`font-semibold ${player === judge ? 'text-yellow-400' : ''}`}>
                 {player} {player === judge && <span className="text-xs">(Judge)</span>}
               </span>
@@ -24,10 +26,7 @@ const ScoreboardModal: React.FC<ScoreboardModalProps> = ({ scores, judge, onClos
             </li>
           ))}
         </ul>
-        <button
-          className="btn-primary w-full"
-          onClick={onClose}
-        >
+        <button className="btn-primary w-full" onClick={onClose}>
           Close
         </button>
       </div>
