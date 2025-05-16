@@ -18,18 +18,17 @@ const JudgeView: React.FC = () => {
   const session = useGameStore(state => state.session);
   const roomData = useGameStore(state => state.roomData);
   const pickWinner = useGameStore(state => state.pickWinner);
-  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll for winner updates every second
+  // Poll winner from backend every second
   useEffect(() => {
     if (!session.room) return;
 
     const interval = setInterval(async () => {
-      try {
-        const result = await clientKvGet(`room:${session.room}:lastWinner`);
-        if (result) {
+      const result = await clientKvGet(`room:${session.room}:lastWinner`);
+      if (result) {
+        try {
           const data = JSON.parse(result);
           if (winnerRef.current !== data.winner) {
             winnerRef.current = data.winner;
@@ -40,27 +39,16 @@ const JudgeView: React.FC = () => {
               soundPlayedRef.current = true;
             }
           }
+        } catch {
+          // ignore parse errors
         }
-      } catch {
-        // Ignore JSON parse errors
       }
     }, 1000);
 
     return () => {
       clearInterval(interval);
-      winnerRef.current = null;
-      soundPlayedRef.current = false;
     };
   }, [session.room, playSound]);
-
-  // Poll room data every 5 seconds
-  useEffect(() => {
-    if (!session.room) return;
-    const intervalId = setInterval(() => {
-      loadRoomData(session.room).catch(console.error);
-    }, 5000);
-    return () => clearInterval(intervalId);
-  }, [session.room, loadRoomData]);
 
   if (!roomData || !session.name) return null;
 
@@ -73,13 +61,14 @@ const JudgeView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard after closing winner modal
+          setShowScoreboard(true); // Show scoreboard, wait for manual close
+          // Do NOT reset refs here to avoid retriggering
         }}
       />
     );
   }
 
-  // Scoreboard Modal (stay until user closes)
+  // Scoreboard Modal
   if (showScoreboard) {
     return (
       <ScoreboardModal
@@ -87,7 +76,7 @@ const JudgeView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null;
+          winnerRef.current = null;  // Reset after user closes
           soundPlayedRef.current = false;
         }}
       />
