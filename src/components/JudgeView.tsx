@@ -12,7 +12,6 @@ const JudgeView: React.FC = () => {
   const [winnerData, setWinnerData] = useState<{ winner: string; curse: string } | null>(null);
   const [showScoreboard, setShowScoreboard] = useState(false);
 
-  // Refs to avoid re-triggering sounds and modals repeatedly
   const winnerRef = useRef<string | null>(null);
   const soundPlayedRef = useRef(false);
 
@@ -22,18 +21,18 @@ const JudgeView: React.FC = () => {
 
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll the backend for a winner every second
+  // Poll winner from backend every second
   useEffect(() => {
     if (!session.room) return;
 
     const interval = setInterval(async () => {
-      const lastWinnerRaw = await clientKvGet(`room:${session.room}:lastWinner`);
-      if (lastWinnerRaw) {
+      const result = await clientKvGet(`room:${session.room}:lastWinner`);
+      if (result) {
         try {
-          const data = JSON.parse(lastWinnerRaw);
-          if (winnerRef.current !== data.winner) {
-            winnerRef.current = data.winner;
-            setWinnerData(data);
+          const data = JSON.parse(result);
+          if (winnerRef.current !== data.winner.trim()) {
+            winnerRef.current = data.winner.trim();
+            setWinnerData({ winner: data.winner.trim(), curse: data.curse });
             setShowWinner(true);
             if (!soundPlayedRef.current) {
               playSound('win');
@@ -41,7 +40,7 @@ const JudgeView: React.FC = () => {
             }
           }
         } catch {
-          // ignore JSON parse errors
+          // ignore parse errors
         }
       }
     }, 1000);
@@ -53,7 +52,7 @@ const JudgeView: React.FC = () => {
 
   if (!roomData || !session.name) return null;
 
-  // Show the winner reveal modal
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -62,14 +61,13 @@ const JudgeView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard after winner reveal closes
-          // Do NOT reset refs here — wait for scoreboard close
+          setShowScoreboard(true); // Show scoreboard, wait for manual close
         }}
       />
     );
   }
 
-  // Show scoreboard until manually closed
+  // Scoreboard Modal
   if (showScoreboard) {
     return (
       <ScoreboardModal
@@ -77,23 +75,21 @@ const JudgeView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null; // Reset for next round
+          winnerRef.current = null;  // Reset after user closes
           soundPlayedRef.current = false;
         }}
       />
     );
   }
 
-  // Anonymize submissions excluding judge's
   const submissions = Object.entries(roomData.submissions)
-    .filter(([player]) => player !== roomData.judge)
+    .filter(([player]) => player.trim() !== roomData.judge.trim())
     .map(([player, curse], idx) => ({
-      key: player,
+      key: player.trim(),
       curse,
       anonymizedId: `Card #${idx + 1}`,
     }));
 
-  // Check all non-judge players have submitted
   const allSubmitted =
     submissions.length === roomData.players.length - 1 &&
     submissions.every(s => s.curse);
@@ -103,7 +99,7 @@ const JudgeView: React.FC = () => {
     if (!selectedWinner) return;
     setSubmitting(true);
     try {
-      await pickWinner(selectedWinner);
+      await pickWinner(selectedWinner.trim());
       playSound('win');
     } catch (err) {
       console.error('Error picking winner:', err);

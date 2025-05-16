@@ -21,21 +21,21 @@ const PlayerView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll for last winner every second
   useEffect(() => {
     if (!session.room) return;
 
     const interval = setInterval(async () => {
-      const lastWinnerRaw = await clientKvGet(`room:${session.room}:lastWinner`);
-      if (lastWinnerRaw) {
+      const result = await clientKvGet(`room:${session.room}:lastWinner`);
+      if (result) {
         try {
-          const data = JSON.parse(lastWinnerRaw);
-          if (winnerRef.current !== data.winner) {
-            winnerRef.current = data.winner;
-            setWinnerData(data);
+          const data = JSON.parse(result);
+          if (winnerRef.current !== data.winner.trim()) {
+            winnerRef.current = data.winner.trim();
+            setWinnerData({ winner: data.winner.trim(), curse: data.curse });
             setShowWinner(true);
             if (!soundPlayedRef.current) {
               playSound('win');
@@ -43,19 +43,21 @@ const PlayerView: React.FC = () => {
             }
           }
         } catch {
-          // ignore parse errors
+          // Ignore parse errors
         }
       }
     }, 1000);
 
     return () => {
       clearInterval(interval);
+      winnerRef.current = null;
+      soundPlayedRef.current = false;
     };
   }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
-  // Winner Reveal modal
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -70,8 +72,8 @@ const PlayerView: React.FC = () => {
     );
   }
 
-  // Scoreboard Modal until user closes
-  if (showScoreboard) {
+  // Scoreboard Modal (stay until user closes)
+  if (showScoreboard && roomData) {
     return (
       <ScoreboardModal
         scores={roomData.scores}
@@ -85,8 +87,8 @@ const PlayerView: React.FC = () => {
     );
   }
 
-  const playerHand = roomData.hands[session.name] || [];
-  const hasSubmitted = !!roomData.submissions[session.name];
+  const playerHand = roomData.hands[session.name.trim()] || [];
+  const hasSubmitted = !!roomData.submissions[session.name.trim()];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,11 +176,7 @@ const PlayerView: React.FC = () => {
           className="btn-primary w-full md:w-auto"
           disabled={submitting || (!selectedCurse && !wantRedraw)}
         >
-          {submitting
-            ? 'Submitting...'
-            : wantRedraw
-            ? 'Redraw Hand'
-            : 'Submit Curse'}
+          {submitting ? 'Submitting...' : wantRedraw ? 'Redraw Hand' : 'Submit Curse'}
         </button>
       </form>
     </div>
