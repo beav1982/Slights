@@ -1,10 +1,8 @@
 // src/lib/store.ts
 
 import { create } from 'zustand';
-// IMPORTANT: Assuming your updated redis.ts exports functions like clientKvGet, clientKvSet, clientKvDelete
-// which internally call your Next.js API routes (e.g., /api/kv/set)
 import { clientKvGet, clientKvSet, clientKvDelete } from './redis';
-import { HAND_SIZE, curses, drawRandom, nextJudge, slights } from '../lib/gameData';
+import { HAND_SIZE, curses, drawHand, drawRandom, nextJudge, slights } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
 
 interface GameStore {
@@ -21,7 +19,7 @@ interface GameStore {
   redrawHand: () => Promise<void>;
   pickWinner: (winner: string) => Promise<void>;
 
-  playSound: (sound: 'submit' | 'win') => void;
+  playSound: (sound: 'submit' | 'win' | 'error' | 'click') => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -47,8 +45,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvGet(`room:${roomCode}:round`),
         clientKvGet(`room:${roomCode}:slight`)
       ]);
-
-      console.log(`[store.ts] loadRoomData - Fetched from KV:`, { judge, playersJson, scoresJson, round, slight });
 
       if (!judge || !playersJson || !scoresJson || !round || !slight) {
         console.error(`[store.ts] loadRoomData: Incomplete room data for ${roomCode}`);
@@ -101,7 +97,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       await clientKvSet(`room:${code}:scores`, JSON.stringify({ [alias]: 0 }));
       await clientKvSet(`room:${code}:round`, '1');
       await clientKvSet(`room:${code}:slight`, drawRandom(slights));
-      await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawRandom(curses, HAND_SIZE)));
+      await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses, HAND_SIZE)));
       console.log(`[store.ts] createRoom: All KV operations complete for room ${code}`);
 
       set({ session: { name: alias, room: code } });
@@ -121,8 +117,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvGet(`room:${code}:scores`)
       ]);
 
-      console.log(`[store.ts] joinRoom - Fetched from KV:`, { playersJson, scoresJson });
-
       if (!playersJson || !scoresJson) {
         console.error(`[store.ts] joinRoom: Room ${code} not found or data incomplete.`);
         throw new Error('Room not found');
@@ -137,7 +131,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         await clientKvSet(`room:${code}:players`, JSON.stringify(players));
         await clientKvSet(`room:${code}:scores`, JSON.stringify(scores));
-        await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawRandom(curses, HAND_SIZE)));
+        await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses, HAND_SIZE)));
       }
       console.log(`[store.ts] joinRoom: Successfully processed join for ${alias} in room ${code}`);
 
@@ -185,7 +179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       await clientKvSet(
         `room:${session.room}:hand:${session.name}`,
-        JSON.stringify(drawRandom(curses, HAND_SIZE))
+        JSON.stringify(drawHand(curses, HAND_SIZE))
       );
       await loadRoomData(session.room);
     } catch (error) {
@@ -215,9 +209,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
         clientKvSet(`room:${session.room}:slight`, drawRandom(slights)),
         clientKvSet(`room:${session.room}:judge`, nextJudge(roomData.players, roomData.judge)),
-        ...roomData.players.map((player) =>
-          clientKvDelete(`room:${session.room}:submission:${player}`)
-        )
+        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`))
       ]);
 
       playSound('win');
