@@ -25,12 +25,12 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   session: {
     name: '',
-    room: null
+    room: null,
   },
 
   setSession: (partial) =>
     set((state) => ({
-      session: { ...state.session, ...partial }
+      session: { ...state.session, ...partial },
     })),
 
   roomData: null,
@@ -45,11 +45,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         `room:${roomCode}:round`,
         `room:${roomCode}:slight`,
       ];
+
       const [judge, playersJson, scoresJson, round, slight] = await Promise.all(
-        keys.map(k => clientKvGet(k))
+        keys.map((k) => clientKvGet(k))
       );
 
-      if ([judge, playersJson, scoresJson, round, slight].some(v => !v)) {
+      if ([judge, playersJson, scoresJson, round, slight].some((v) => !v)) {
         console.error(`[store.ts] loadRoomData: Incomplete room data for ${roomCode}`);
         throw new Error('Incomplete room data');
       }
@@ -72,6 +73,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (hand) hands[currentPlayerName] = JSON.parse(hand);
       }
 
+      // Debug logs for submissions and hand loading
+      console.log(`[store.ts] loadRoomData: Submissions:`, submissions);
+      console.log(`[store.ts] loadRoomData: Player ${currentPlayerName} hand:`, hands[currentPlayerName]);
+
       set({
         roomData: {
           judge: judge as string,
@@ -80,9 +85,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           round: parseInt(round as string, 10),
           slight: slight as string,
           submissions,
-          hands
-        }
+          hands,
+        },
       });
+
       console.log(`[store.ts] loadRoomData: Room ${roomCode} data set in store.`);
     } catch (error) {
       console.error(`[store.ts] loadRoomData: Failed for room ${roomCode}:`, error);
@@ -117,7 +123,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const [playersJson, scoresJson] = await Promise.all([
         clientKvGet(`room:${code}:players`),
-        clientKvGet(`room:${code}:scores`)
+        clientKvGet(`room:${code}:scores`),
       ]);
 
       if (!playersJson || !scoresJson) {
@@ -136,6 +142,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         await clientKvSet(`room:${code}:scores`, JSON.stringify(scores));
         await clientKvSet(`room:${code}:hand:${alias}`, JSON.stringify(drawHand(curses, HAND_SIZE)));
       }
+
       console.log(`[store.ts] joinRoom: Successfully processed join for ${alias} in room ${code}`);
 
       set({ session: { name: alias, room: code } });
@@ -160,7 +167,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (submittedIndex !== -1) hand.splice(submittedIndex, 1);
 
       if (hand.length < HAND_SIZE) {
-        const possibleCurses = curses.filter(c => !hand.includes(c));
+        const possibleCurses = curses.filter((c) => !hand.includes(c));
         const newCurse = drawRandom(possibleCurses.length > 0 ? possibleCurses : curses);
         if (newCurse) hand.push(newCurse);
       }
@@ -212,7 +219,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
         clientKvSet(`room:${session.room}:slight`, drawRandom(slights)),
         clientKvSet(`room:${session.room}:judge`, nextJudge(roomData.players, roomData.judge)),
-        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`))
+        ...roomData.players.map((player) =>
+          clientKvDelete(`room:${session.room}:submission:${player}`)
+        ),
       ]);
 
       playSound('win');
@@ -235,5 +244,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else {
       console.warn(`[store.ts] playSound: Attempted to play sound in non-browser environment.`);
     }
-  }
+  },
 }));
