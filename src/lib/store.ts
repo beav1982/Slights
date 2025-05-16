@@ -1,3 +1,5 @@
+// src/lib/store.ts
+
 import { create } from 'zustand';
 import { clientKvGet, clientKvSet, clientKvDelete } from './redis';
 import { HAND_SIZE, curses, drawHand, drawRandom, nextJudge, slights } from '../lib/gameData';
@@ -23,12 +25,12 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   session: {
     name: '',
-    room: null,
+    room: null
   },
 
   setSession: (partial) =>
     set((state) => ({
-      session: { ...state.session, ...partial },
+      session: { ...state.session, ...partial }
     })),
 
   roomData: null,
@@ -44,10 +46,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         `room:${roomCode}:slight`,
       ];
       const [judge, playersJson, scoresJson, round, slight] = await Promise.all(
-        keys.map((k) => clientKvGet(k))
+        keys.map(k => clientKvGet(k))
       );
 
-      if ([judge, playersJson, scoresJson, round, slight].some((v) => !v)) {
+      if ([judge, playersJson, scoresJson, round, slight].some(v => !v)) {
         console.error(`[store.ts] loadRoomData: Incomplete room data for ${roomCode}`);
         throw new Error('Incomplete room data');
       }
@@ -56,15 +58,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const scores = JSON.parse(scoresJson as string);
       const submissions: Record<string, string> = {};
 
-      // Load submissions for all players, including judge if needed
       await Promise.all(
         players.map(async (player: string) => {
           const submission = await clientKvGet(`room:${roomCode}:submission:${player}`);
           if (submission) submissions[player] = submission;
         })
       );
-
-      console.log(`[store.ts] loadRoomData: Loaded submissions`, submissions);
 
       const currentPlayerName = get().session.name;
       const hands: Record<string, string[]> = {};
@@ -81,8 +80,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           round: parseInt(round as string, 10),
           slight: slight as string,
           submissions,
-          hands,
-        },
+          hands
+        }
       });
       console.log(`[store.ts] loadRoomData: Room ${roomCode} data set in store.`);
     } catch (error) {
@@ -118,7 +117,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const [playersJson, scoresJson] = await Promise.all([
         clientKvGet(`room:${code}:players`),
-        clientKvGet(`room:${code}:scores`),
+        clientKvGet(`room:${code}:scores`)
       ]);
 
       if (!playersJson || !scoresJson) {
@@ -161,7 +160,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (submittedIndex !== -1) hand.splice(submittedIndex, 1);
 
       if (hand.length < HAND_SIZE) {
-        const possibleCurses = curses.filter((c) => !hand.includes(c));
+        const possibleCurses = curses.filter(c => !hand.includes(c));
         const newCurse = drawRandom(possibleCurses.length > 0 ? possibleCurses : curses);
         if (newCurse) hand.push(newCurse);
       }
@@ -195,7 +194,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pickWinner: async (winner) => {
     const { session, roomData, loadRoomData, playSound } = get();
     if (!session.room || !roomData || !session.name) return;
-    console.log(`[store.ts] pickWinner: Judge ${session.name} picking ${winner} in room ${session.room}`);
+
+    // Prevent judge from being picked as winner
+    if (winner === roomData.judge) {
+      console.warn('[store.ts] pickWinner: Cannot pick judge as winner.');
+      return;
+    }
+
     try {
       const scores = { ...roomData.scores };
       scores[winner] = (scores[winner] || 0) + 1;
@@ -213,7 +218,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
         clientKvSet(`room:${session.room}:slight`, drawRandom(slights)),
         clientKvSet(`room:${session.room}:judge`, nextJudge(roomData.players, roomData.judge)),
-        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`)),
+        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`))
       ]);
 
       playSound('win');
@@ -236,5 +241,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else {
       console.warn(`[store.ts] playSound: Attempted to play sound in non-browser environment.`);
     }
-  },
+  }
 }));
