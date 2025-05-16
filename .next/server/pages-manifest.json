@@ -1,9 +1,14 @@
 {
   "/_app": "pages/_app.js",
+  "/HomePage": "pages/HomePage.html",
+  "/api/kv/del": "pages/api/kv/del.js",
+  "/api/kv/set": "pages/api/kv/set.js",
+  "/api/kv/get": "pages/api/kv/get.js",
+  "/game/[roomCode]": "pages/game/[roomCode].html",
+  "/": "pages/index.html",
+  "/game/host": "pages/game/host.html",
+  "/game/join": "pages/game/join.html",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/game/[roomCode]": "pages/game/[roomCode].js",
-  "/": "pages/index.js",
-  "/game/host": "pages/game/host.js",
-  "/game/join": "pages/game/join.js"
+  "/404": "pages/404.html"
 }

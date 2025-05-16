@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
 import { Crown } from 'lucide-react';
@@ -8,26 +8,38 @@ const JudgeView: React.FC = () => {
   const [selectedWinner, setSelectedWinner] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [showWinner, setShowWinner] = useState(false);
-  
+
   const roomData = useGameStore(state => state.roomData);
   const session = useGameStore(state => state.session);
   const pickWinner = useGameStore(state => state.pickWinner);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
   const playSound = useSoundStore((state) => state.playSound);
 
+  // Polling: Reload room data every 5 seconds (pauses when winner modal is open)
+  useEffect(() => {
+    if (!session.room) return;
+    const intervalId = setInterval(() => {
+      if (!showWinner) {
+        loadRoomData(session.room);
+      }
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [session.room, showWinner, loadRoomData]);
+
   if (!roomData || !session.name) return null;
-  
+
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== session.name)
     .map(([player, curse]) => ({ player, curse }));
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWinner) return;
-    
+
     setSubmitting(true);
     try {
-  setShowWinner(true);
-playSound('win');
+      setShowWinner(true);
+      playSound('win');
     } catch (err) {
       console.error('Error picking winner:', err);
       setSubmitting(false);
@@ -43,7 +55,7 @@ playSound('win');
       setSubmitting(false);
     }
   };
-  
+
   return (
     <div className="p-4 md:p-6">
       {showWinner && (
@@ -58,29 +70,29 @@ playSound('win');
         <Crown className="text-yellow-400 mr-2" />
         <h2 className="text-2xl font-bold text-yellow-100">Judge's Panel</h2>
       </div>
-      
+
       <div className="slight-card mb-8">
         <h3 className="text-xl font-semibold mb-2 text-indigo-200">The Slight:</h3>
         <p className="text-xl italic text-white">{roomData.slight}</p>
       </div>
-      
+
       <h3 className="text-lg font-semibold mb-4 text-gray-200">
-        {submissions.length === 0 
-          ? 'Waiting for submissions...' 
+        {submissions.length === 0
+          ? 'Waiting for submissions...'
           : 'Select the best curse:'}
       </h3>
-      
+
       {submissions.length > 0 ? (
         <form onSubmit={handleSubmit}>
           <div className="grid gap-3 mb-6">
             {submissions.map(({ player, curse }, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`submission-card animate-pop cursor-pointer ${selectedWinner === player ? 'border-yellow-500 bg-yellow-900/40' : ''}`}
                 onClick={() => setSelectedWinner(player)}
               >
                 <label className="flex items-start cursor-pointer">
-                  <input 
+                  <input
                     type="radio"
                     name="winner"
                     value={player}
@@ -93,7 +105,7 @@ playSound('win');
               </div>
             ))}
           </div>
-          
+
           <button
             type="submit"
             className="btn-success w-full md:w-auto"

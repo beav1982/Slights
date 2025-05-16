@@ -1,47 +1,64 @@
 {
   "polyfillFiles": [
-    "static/chunks/polyfills.js"
+    "static/chunks/polyfills-42372ed130431b0a.js"
   ],
-  "devFiles": [
-    "static/chunks/react-refresh.js"
-  ],
+  "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/development/_buildManifest.js",
-    "static/development/_ssgManifest.js"
+    "static/BsrXQWyMYgOoe115f-8Rc/_buildManifest.js",
+    "static/BsrXQWyMYgOoe115f-8Rc/_ssgManifest.js"
   ],
   "rootMainFiles": [],
   "rootMainFilesTree": {},
   "pages": {
     "/": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/index.js"
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/chunks/230-5443ad96548554c5.js",
+      "static/chunks/pages/index-44536010f3c14a4e.js"
+    ],
+    "/HomePage": [
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/chunks/230-5443ad96548554c5.js",
+      "static/chunks/pages/HomePage-478b17dfd9bb4ba8.js"
     ],
     "/_app": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/_app.js"
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/css/0599467bbc55e15d.css",
+      "static/chunks/pages/_app-9df210f984ab95cb.js"
     ],
     "/_error": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/_error.js"
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/chunks/pages/_error-6bcff2f13b96b9eb.js"
     ],
     "/game/[roomCode]": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/game/[roomCode].js"
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/chunks/276-d7d85a8837a513df.js",
+      "static/chunks/473-d744624a0eb84da6.js",
+      "static/chunks/pages/game/[roomCode]-cb7fc7ece7e7f34c.js"
     ],
     "/game/host": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/game/host.js"
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/chunks/473-d744624a0eb84da6.js",
+      "static/chunks/pages/game/host-2c3d148ef372baf8.js"
     ],
     "/game/join": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/game/join.js"
+      "static/chunks/webpack-0a2144d89b03677e.js",
+      "static/chunks/framework-f75312fc4004b783.js",
+      "static/chunks/main-b3a9ce8a482d079f.js",
+      "static/chunks/473-d744624a0eb84da6.js",
+      "static/chunks/pages/game/join-c03e82c551be4d0d.js"
     ]
   },
   "ampFirstPages": []

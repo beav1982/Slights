@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
 
@@ -11,8 +11,18 @@ const PlayerView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
+  const loadRoomData = useGameStore(state => state.loadRoomData); // <-- add this
 
   const playSound = useSoundStore(state => state.playSound);
+
+  // Polling: Reload room data every 5 seconds
+  useEffect(() => {
+    if (!session.room) return;
+    const intervalId = setInterval(() => {
+      loadRoomData(session.room);
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [session.room, loadRoomData]);
 
   if (!roomData || !session.name) return null;
 

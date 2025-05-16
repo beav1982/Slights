@@ -1,6 +1,6 @@
 // src/lib/gameData.ts
 
-export const slights = [
+export const HAND_SIZE = 5 slights = [
   "I didn’t use my turn signal when changing lanes.",
   "I listened to my music on a Bluetooth speaker in public.",
   "I put an empty milk jug in the fridge.",
@@ -156,7 +156,7 @@ export const curses = [
   "May your streaming service buffer only during the best part of the movie."
 ];
 
-export function drawHand(deck: string[], count = 3): string[] {
+export function drawHand(deck: string[], count = HAND_SIZE): string[] {
   const shuffled = [...deck].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
