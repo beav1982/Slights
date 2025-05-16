@@ -3,8 +3,9 @@
 import { create } from 'zustand';
 // IMPORTANT: Assuming your updated redis.ts exports functions like clientKvGet, clientKvSet, clientKvDelete
 // which internally call your Next.js API routes (e.g., /api/kv/set)
-import { clientKvGet, clientKvSet, clientKvDelete } from './redis';
+import { clientKvGet, clientKvSet } from './redis';
 import { drawHand, drawRandom, nextJudge, slights, curses } from '../lib/gameData';
+import { HAND_SIZE, curses, drawHand, drawRandom } from '../lib/gameData';
 import { GameSession, RoomData } from './types';
 
 interface GameStore {
@@ -151,31 +152,59 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   submitCurse: async (curse) => {
-    const { session, loadRoomData, playSound } = get();
-    if (!session.room || !session.name) return;
-    console.log(`[store.ts] submitCurse: ${session.name} submitting '${curse}' for room ${session.room}`);
-    try {
-      await clientKvSet(`room:${session.room}:submission:${session.name}`, curse); // Using clientKvSet
-      await loadRoomData(session.room);
-      playSound('submit');
-    } catch (error) {
-      console.error(`[store.ts] submitCurse: Error for ${session.name} in room ${session.room}:`, error);
-      throw error;
-    }
-  },
+  const { session, loadRoomData, playSound } = get();
+  if (!session.room || !session.name) return;
+  console.log(`[store.ts] submitCurse: ${session.name} submitting '${curse}' for room ${session.room}`);
+  try {
+    // 1. Save the submitted curse
+    await clientKvSet(`room:${session.room}:submission:${session.name}`, curse);
 
-  redrawHand: async () => {
-    const { session, loadRoomData } = get();
-    if (!session.room || !session.name) return;
-    console.log(`[store.ts] redrawHand: ${session.name} redrawing hand for room ${session.room}`);
-    try {
-      await clientKvSet(`room:${session.room}:hand:${session.name}`, JSON.stringify(drawHand(curses))); // Using clientKvSet
-      await loadRoomData(session.room);
-    } catch (error) {
-      console.error(`[store.ts] redrawHand: Error for ${session.name} in room ${session.room}:`, error);
-      throw error;
+    // 2. Get current hand
+    const handRaw = await clientKvGet(`room:${session.room}:hand:${session.name}`);
+    let hand = handRaw ? JSON.parse(handRaw) : [];
+
+    // 3. Remove submitted curse from hand (first occurrence only)
+    const submittedIndex = hand.indexOf(curse);
+    if (submittedIndex !== -1) hand.splice(submittedIndex, 1);
+
+    // 4. Draw a new curse (avoiding current hand if possible) to get back to HAND_SIZE
+    if (hand.length < HAND_SIZE) {
+      // Exclude already-in-hand cards from pool
+      const possibleCurses = curses.filter(c => !hand.includes(c));
+      // Fallback to full deck if not enough left
+      const newCurse = drawRandom(possibleCurses.length > 0 ? possibleCurses : curses);
+      if (newCurse) hand.push(newCurse);
     }
-  },
+
+    // 5. Save updated hand
+    await clientKvSet(`room:${session.room}:hand:${session.name}`, JSON.stringify(hand));
+
+    // 6. Reload room data and play sound
+    await loadRoomData(session.room);
+    playSound('submit');
+  } catch (error) {
+    console.error(`[store.ts] submitCurse: Error for ${session.name} in room ${session.room}:`, error);
+    throw error;
+  }
+},
+
+redrawHand: async () => {
+  const { session, loadRoomData } = get();
+  if (!session.room || !session.name) return;
+  console.log(`[store.ts] redrawHand: ${session.name} redrawing hand for room ${session.room}`);
+  try {
+    // Draw a completely new hand of HAND_SIZE
+    await clientKvSet(
+      `room:${session.room}:hand:${session.name}`,
+      JSON.stringify(drawHand(curses, HAND_SIZE))
+    );
+    await loadRoomData(session.room);
+  } catch (error) {
+    console.error(`[store.ts] redrawHand: Error for ${session.name} in room ${session.room}:`, error);
+    throw error;
+  }
+},
+
 
   pickWinner: async (winner) => {
     const { session, roomData, loadRoomData, playSound } = get();
@@ -184,7 +213,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const scores = { ...roomData.scores };
       scores[winner] = (scores[winner] || 0) + 1;
-
+// Save the winning player and curse for Winner Reveal modal (so all players can see it)
+await clientKvSet(
+  `room:${session.room}:lastWinner`,
+  JSON.stringify({
+    winner,
+    curse: roomData.submissions[winner], // get the winning curse text from the submissions
+  })
+);
       await Promise.all([
         clientKvSet(`room:${session.room}:scores`, JSON.stringify(scores)), // Using clientKvSet
         clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),

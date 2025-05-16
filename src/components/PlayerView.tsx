@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
+import { clientKvGet, clientKvDelete } from '../lib/redis';
+import WinningReveal from './WinningReveal';
 
 const PlayerView: React.FC = () => {
   const [selectedCurse, setSelectedCurse] = useState<string>('');
   const [wantRedraw, setWantRedraw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Winner reveal state
+  const [showWinner, setShowWinner] = useState(false);
+  const [winnerData, setWinnerData] = useState<{ winner: string, curse: string } | null>(null);
+
   const session = useGameStore(state => state.session);
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
-  const loadRoomData = useGameStore(state => state.loadRoomData); // <-- add this
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
@@ -24,7 +30,46 @@ const PlayerView: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [session.room, loadRoomData]);
 
+  // Polling: Winner reveal modal
+  useEffect(() => {
+    if (!session.room) return;
+    const interval = setInterval(async () => {
+      const result = await clientKvGet(`room:${session.room}:lastWinner`);
+      if (result) {
+        try {
+          const data = JSON.parse(result);
+          if (!winnerData || winnerData.winner !== data.winner) {
+            setWinnerData(data);
+            setShowWinner(true);
+            playSound('win');
+            setTimeout(() => {
+              setShowWinner(false);
+              setWinnerData(null);
+            }, 5000);
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [session.room, winnerData, playSound]);
+
   if (!roomData || !session.name) return null;
+
+  // If the winner reveal is active, show it and block normal play
+  if (showWinner && winnerData) {
+    return (
+      <WinningReveal
+        winner={winnerData.winner}
+        curse={winnerData.curse}
+        onClose={() => {
+          setShowWinner(false);
+          setWinnerData(null);
+        }}
+      />
+    );
+  }
 
   const playerHand = roomData.hands[session.name] || [];
   const hasSubmitted = !!roomData.submissions[session.name];
@@ -38,10 +83,10 @@ const PlayerView: React.FC = () => {
         await redrawHand();
         setSelectedCurse('');
         setWantRedraw(false);
-        playSound('error'); // Optional: sound cue for redraw
+        playSound('error');
       } else if (selectedCurse) {
         await submitCurse(selectedCurse);
-        playSound('submit'); // Play on submit
+        playSound('submit');
       }
     } catch (err) {
       console.error('Error submitting:', err);

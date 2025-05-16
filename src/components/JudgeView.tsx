@@ -1,56 +1,95 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../lib/store';
 import { useSoundStore } from '../stores/useSoundStore';
-import { Crown } from 'lucide-react';
+import { clientKvGet, clientKvDelete } from '../lib/redis';
 import WinningReveal from './WinningReveal';
 
 const JudgeView: React.FC = () => {
   const [selectedWinner, setSelectedWinner] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
-  const [showWinner, setShowWinner] = useState(false);
 
-  const roomData = useGameStore(state => state.roomData);
+  // Winner reveal state
+  const [showWinner, setShowWinner] = useState(false);
+  const [winnerData, setWinnerData] = useState<{ winner: string, curse: string } | null>(null);
+
   const session = useGameStore(state => state.session);
+  const roomData = useGameStore(state => state.roomData);
   const pickWinner = useGameStore(state => state.pickWinner);
   const loadRoomData = useGameStore(state => state.loadRoomData);
-  const playSound = useSoundStore((state) => state.playSound);
 
-  // Polling: Reload room data every 5 seconds (pauses when winner modal is open)
+  const playSound = useSoundStore(state => state.playSound);
+
+  // Polling: Reload room data every 5 seconds
   useEffect(() => {
     if (!session.room) return;
     const intervalId = setInterval(() => {
-      if (!showWinner) {
-        loadRoomData(session.room);
-      }
+      loadRoomData(session.room);
     }, 5000);
     return () => clearInterval(intervalId);
-  }, [session.room, showWinner, loadRoomData]);
+  }, [session.room, loadRoomData]);
+
+  // Polling: Winner reveal modal (judge clears winner key)
+  useEffect(() => {
+    if (!session.room) return;
+    const interval = setInterval(async () => {
+      const result = await clientKvGet(`room:${session.room}:lastWinner`);
+      if (result) {
+        try {
+          const data = JSON.parse(result);
+          if (!winnerData || winnerData.winner !== data.winner) {
+            setWinnerData(data);
+            setShowWinner(true);
+            playSound('win');
+            setTimeout(async () => {
+              setShowWinner(false);
+              setWinnerData(null);
+              // Judge is responsible for clearing the winner key!
+              await clientKvDelete(`room:${session.room}:lastWinner`);
+            }, 5000);
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [session.room, winnerData, playSound]);
 
   if (!roomData || !session.name) return null;
 
-  const submissions = Object.entries(roomData.submissions)
-    .filter(([player]) => player !== session.name)
-    .map(([player, curse]) => ({ player, curse }));
+  // If winner reveal is active, block all other actions and show the modal
+  if (showWinner && winnerData) {
+    return (
+      <WinningReveal
+        winner={winnerData.winner}
+        curse={winnerData.curse}
+        onClose={() => {
+          setShowWinner(false);
+          setWinnerData(null);
+        }}
+      />
+    );
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // All submissions except for the judge's own (just in case)
+  const submissions = Object.entries(roomData.submissions).filter(
+    ([player]) => player !== roomData.judge
+  );
+
+  // Can only pick a winner when all non-judge players have submitted
+  const allSubmitted = submissions.length === roomData.players.length - 1 &&
+    submissions.every(([, curse]) => curse);
+
+  const handlePickWinner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWinner) return;
-
     setSubmitting(true);
     try {
-      setShowWinner(true);
+      await pickWinner(selectedWinner);
       playSound('win');
     } catch (err) {
       console.error('Error picking winner:', err);
-      setSubmitting(false);
-    }
-  };
-
-  const handleWinnerClose = async () => {
-    try {
-      await pickWinner(selectedWinner);
-      setSelectedWinner('');
-      setShowWinner(false);
+      playSound('error');
     } finally {
       setSubmitting(false);
     }
@@ -58,37 +97,21 @@ const JudgeView: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6">
-      {showWinner && (
-        <WinningReveal
-          winner={selectedWinner}
-          curse={roomData.submissions[selectedWinner]}
-          onClose={handleWinnerClose}
-        />
-      )}
-
-      <div className="flex items-center mb-4">
-        <Crown className="text-yellow-400 mr-2" />
-        <h2 className="text-2xl font-bold text-yellow-100">Judge's Panel</h2>
-      </div>
-
       <div className="slight-card mb-8">
         <h3 className="text-xl font-semibold mb-2 text-indigo-200">The Slight:</h3>
         <p className="text-xl italic text-white">{roomData.slight}</p>
       </div>
 
-      <h3 className="text-lg font-semibold mb-4 text-gray-200">
-        {submissions.length === 0
-          ? 'Waiting for submissions...'
-          : 'Select the best curse:'}
-      </h3>
-
-      {submissions.length > 0 ? (
-        <form onSubmit={handleSubmit}>
+      <h3 className="text-lg font-semibold mb-3">Submitted Curses:</h3>
+      {submissions.length === 0 ? (
+        <p className="italic text-gray-400 mb-8">Waiting for players to submit...</p>
+      ) : (
+        <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map(({ player, curse }, index) => (
+            {submissions.map(([player, curse], idx) => (
               <div
-                key={index}
-                className={`submission-card animate-pop cursor-pointer ${selectedWinner === player ? 'border-yellow-500 bg-yellow-900/40' : ''}`}
+                key={player}
+                className={`curse-card cursor-pointer ${selectedWinner === player ? 'border-yellow-500 bg-yellow-900/30' : ''}`}
                 onClick={() => setSelectedWinner(player)}
               >
                 <label className="flex items-start cursor-pointer">
@@ -100,24 +123,21 @@ const JudgeView: React.FC = () => {
                     onChange={() => setSelectedWinner(player)}
                     className="mt-1 mr-3"
                   />
-                  <span>{curse}</span>
+                  <span>
+                    <span className="font-bold text-yellow-300">{player}</span>: {curse}
+                  </span>
                 </label>
               </div>
             ))}
           </div>
-
           <button
             type="submit"
-            className="btn-success w-full md:w-auto"
-            disabled={submitting || !selectedWinner}
+            className="btn-primary w-full md:w-auto"
+            disabled={submitting || !selectedWinner || !allSubmitted}
           >
-            {submitting ? 'Selecting...' : 'Award Point'}
+            {submitting ? 'Picking Winner...' : 'Pick Winner'}
           </button>
         </form>
-      ) : (
-        <div className="text-center p-8 italic text-gray-400">
-          Waiting for players to submit their curses...
-        </div>
       )}
     </div>
   );
