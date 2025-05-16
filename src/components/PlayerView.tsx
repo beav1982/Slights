@@ -35,29 +35,35 @@ const PlayerView: React.FC = () => {
   // Polling: Winner reveal modal
   useEffect(() => {
     if (!session.room) return;
+    let soundPlayed = false; // Play win sound only once per winner
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
         try {
           const data = JSON.parse(result);
-          if (!winnerData || winnerData.winner !== data.winner) {
-            setWinnerData(data);
-            setShowWinner(true);
-            playSound('win');
-            setTimeout(() => {
-              setShowWinner(false);
-              setWinnerData(null);
-              setShowScoreboard(true);
-              setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
-            }, 5000);
-          }
+          setWinnerData(prev => {
+            if (!prev || prev.winner !== data.winner) {
+              setShowWinner(true);
+              if (!soundPlayed) {
+                playSound('win');
+                soundPlayed = true;
+              }
+              setTimeout(() => {
+                setShowWinner(false);
+                setWinnerData(null);
+                setShowScoreboard(true);
+                setTimeout(() => setShowScoreboard(false), 5000);
+              }, 5000);
+              return data;
+            }
+            return prev;
+          });
         } catch {
           // ignore parse errors
         }
       }
     }, 1000);
     return () => clearInterval(interval);
-    // Only depend on session.room and playSound; winnerData is local to the closure
   }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
@@ -72,7 +78,7 @@ const PlayerView: React.FC = () => {
           setShowWinner(false);
           setWinnerData(null);
           setShowScoreboard(true);
-          setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
+          setTimeout(() => setShowScoreboard(false), 5000);
         }}
       />
     );
@@ -181,8 +187,8 @@ const PlayerView: React.FC = () => {
           {submitting
             ? 'Submitting...'
             : wantRedraw
-              ? 'Redraw Hand'
-              : 'Submit Curse'}
+            ? 'Redraw Hand'
+            : 'Submit Curse'}
         </button>
       </form>
     </div>

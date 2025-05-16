@@ -31,30 +31,36 @@ const JudgeView: React.FC = () => {
   // Polling: Winner reveal modal (judge clears winner key)
   useEffect(() => {
     if (!session.room) return;
+    let soundPlayed = false;
     const interval = setInterval(async () => {
       const result = await clientKvGet(`room:${session.room}:lastWinner`);
       if (result) {
         try {
           const data = JSON.parse(result);
-          if (!winnerData || winnerData.winner !== data.winner) {
-            setWinnerData(data);
-            setShowWinner(true);
-            playSound('win');
-            setTimeout(async () => {
-              setShowWinner(false);
-              setWinnerData(null);
-              await clientKvDelete(`room:${session.room}:lastWinner`);
-              setShowScoreboard(true);
-              setTimeout(() => setShowScoreboard(false), 5000); // Auto-hide scoreboard after 5 seconds
-            }, 5000);
-          }
-        } catch {
+          setWinnerData(prev => {
+            if (!prev || prev.winner !== data.winner) {
+              setShowWinner(true);
+              if (!soundPlayed) {
+                playSound('win');
+                soundPlayed = true;
+              }
+              setTimeout(async () => {
+                setShowWinner(false);
+                setWinnerData(null);
+                await clientKvDelete(`room:${session.room}:lastWinner`);
+                setShowScoreboard(true);
+                setTimeout(() => setShowScoreboard(false), 5000);
+              }, 5000);
+              return data;
+            }
+            return prev;
+          });
+        } catch (_e) {
           // ignore JSON parse errors or deletion errors
         }
       }
     }, 1000);
     return () => clearInterval(interval);
-    // Only depend on session.room and playSound; winnerData is local to the closure
   }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
@@ -89,14 +95,15 @@ const JudgeView: React.FC = () => {
   // Submissions, hide names
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
-    .map(([player, curse], idx) => ({
+    .map(([player, curse], _idx) => ({
       key: player,
       curse,
-      anonymizedId: `Card #${idx + 1}`,
+      anonymizedId: `Card #${_idx + 1}`,
     }));
 
   // Can only pick a winner when all non-judge players have submitted
-  const allSubmitted = submissions.length === roomData.players.length - 1 &&
+  const allSubmitted =
+    submissions.length === roomData.players.length - 1 &&
     submissions.every((s) => s.curse);
 
   const handlePickWinner = async (e: React.FormEvent) => {
@@ -127,11 +134,13 @@ const JudgeView: React.FC = () => {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map((submission) => (
+            {submissions.map((submission, _idx) => (
               <div
                 key={submission.key}
                 className={`curse-card cursor-pointer ${
-                  selectedWinner === submission.key ? 'border-yellow-500 bg-yellow-900/30' : ''
+                  selectedWinner === submission.key
+                    ? 'border-yellow-500 bg-yellow-900/30'
+                    : ''
                 }`}
                 onClick={() => setSelectedWinner(submission.key)}
               >
@@ -145,7 +154,10 @@ const JudgeView: React.FC = () => {
                     className="mt-1 mr-3"
                   />
                   <span>
-                    <span className="font-bold text-yellow-300">{submission.anonymizedId}</span>: {submission.curse}
+                    <span className="font-bold text-yellow-300">
+                      {submission.anonymizedId}
+                    </span>
+                    : {submission.curse}
                   </span>
                 </label>
               </div>
