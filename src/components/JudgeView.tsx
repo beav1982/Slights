@@ -77,16 +77,17 @@ const JudgeView: React.FC = () => {
   }
 
   // Scoreboard Modal (stay until player closes)
-if (showScoreboard && roomData) {
-  return (
-    <ScoreboardModal
-      scores={roomData.scores}
-      players={roomData.players}   {/* Add this */}
-      judge={roomData.judge}
-      onClose={() => setShowScoreboard(false)}
-    />
-  );
-}
+  if (showScoreboard && roomData) {
+    // Add players prop to ScoreboardModal
+    return (
+      <ScoreboardModal
+        scores={roomData.scores}
+        players={roomData.players}
+        judge={roomData.judge}
+        onClose={() => setShowScoreboard(false)}
+      />
+    );
+  }
 
   // Submissions, hide names
   const submissions = Object.entries(roomData.submissions)
@@ -130,7 +131,7 @@ if (showScoreboard && roomData) {
       ) : (
         <form onSubmit={handlePickWinner}>
           <div className="grid gap-3 mb-6">
-            {submissions.map((submission, idx) => (
+            {submissions.map((submission) => (
               <div
                 key={submission.key}
                 className={`curse-card cursor-pointer ${

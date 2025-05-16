@@ -59,7 +59,7 @@ const PlayerView: React.FC = () => {
 
     return () => {
       clearInterval(interval);
-      soundPlayedRef.current = false; // Reset on unmount or room change
+      soundPlayedRef.current = false;
     };
   }, [session.room, winnerData, playSound]);
 
@@ -74,7 +74,7 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true); // Show scoreboard after closing winner modal
+          setShowScoreboard(true);
         }}
       />
     );
