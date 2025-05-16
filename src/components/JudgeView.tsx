@@ -21,7 +21,7 @@ const JudgeView: React.FC = () => {
   const loadRoomData = useGameStore(state => state.loadRoomData);
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll room data every 5 seconds to refresh submissions and scores
+  // Poll room data every 5 seconds for fresh submissions and scores
   useEffect(() => {
     if (!session.room) return;
     const interval = setInterval(() => {
@@ -30,7 +30,7 @@ const JudgeView: React.FC = () => {
     return () => clearInterval(interval);
   }, [session.room, loadRoomData]);
 
-  // Poll winner info every 1 second for winner reveal and sound
+  // Poll last winner every 1 second for winner reveal modal and sound
   useEffect(() => {
     if (!session.room) return;
 
@@ -71,13 +71,13 @@ const JudgeView: React.FC = () => {
           setShowWinner(false);
           setWinnerData(null);
           setShowScoreboard(true);
-          // Do NOT reset refs here to prevent retriggering sound/modal
+          // Do NOT reset refs here to prevent retriggering
         }}
       />
     );
   }
 
-  // Scoreboard Modal
+  // Scoreboard Modal stays open until manually closed
   if (showScoreboard) {
     return (
       <ScoreboardModal
@@ -85,7 +85,7 @@ const JudgeView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          // Reset refs here so next winner triggers correctly
+          // Reset refs here for next winner
           winnerRef.current = null;
           soundPlayedRef.current = false;
         }}
@@ -93,7 +93,7 @@ const JudgeView: React.FC = () => {
     );
   }
 
-  // Filter submissions to exclude judge’s own (fix for wrong point awarding)
+  // Filter submissions excluding judge's own
   const submissions = Object.entries(roomData.submissions)
     .filter(([player]) => player !== roomData.judge)
     .map(([player, curse], idx) => ({
@@ -109,12 +109,13 @@ const JudgeView: React.FC = () => {
   const handlePickWinner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWinner) return;
+    if (selectedWinner === roomData.judge) {
+      // Extra safeguard
+      alert("Judge cannot be selected as winner");
+      return;
+    }
     setSubmitting(true);
     try {
-      // Pick only from non-judge submissions, so winner can’t be judge
-      if (selectedWinner === roomData.judge) {
-        throw new Error("Judge can't be picked as winner");
-      }
       await pickWinner(selectedWinner);
       playSound('win');
     } catch (err) {

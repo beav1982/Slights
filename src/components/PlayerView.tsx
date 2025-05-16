@@ -24,7 +24,7 @@ const PlayerView: React.FC = () => {
   const loadRoomData = useGameStore(state => state.loadRoomData);
   const playSound = useSoundStore(state => state.playSound);
 
-  // Poll room data every 5 seconds to keep hand and submissions updated
+  // Poll room data every 5 seconds to refresh
   useEffect(() => {
     if (!session.room) return;
     const interval = setInterval(() => {
@@ -33,7 +33,7 @@ const PlayerView: React.FC = () => {
     return () => clearInterval(interval);
   }, [session.room, loadRoomData]);
 
-  // Poll winner info every 1 second for reveal modal and sound
+  // Poll last winner every second for winner reveal and sound
   useEffect(() => {
     if (!session.room) return;
 
@@ -57,13 +57,12 @@ const PlayerView: React.FC = () => {
       }
     }, 1000);
 
-    return () => {
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [session.room, playSound]);
 
   if (!roomData || !session.name) return null;
 
+  // Winner Reveal Modal
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -73,12 +72,13 @@ const PlayerView: React.FC = () => {
           setShowWinner(false);
           setWinnerData(null);
           setShowScoreboard(true);
-          // Don't reset refs here to avoid retrigger
+          // Do NOT reset refs here to avoid retriggering winner reveal and sound
         }}
       />
     );
   }
 
+  // Scoreboard Modal stays until manually closed
   if (showScoreboard) {
     return (
       <ScoreboardModal
@@ -86,7 +86,7 @@ const PlayerView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null;  // Reset for next winner
+          winnerRef.current = null;  // Reset refs here for next winner
           soundPlayedRef.current = false;
         }}
       />
