@@ -129,7 +129,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         throw new Error('Room not found');
       }
 
-      let players: string[] = JSON.parse(playersJson).map((p: string) => p.trim());
+      const players: string[] = JSON.parse(playersJson).map((p: string) => p.trim());
       const scores = JSON.parse(scoresJson);
 
       if (!players.includes(trimmedAlias)) {
