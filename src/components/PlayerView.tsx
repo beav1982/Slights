@@ -21,10 +21,11 @@ const PlayerView: React.FC = () => {
   const roomData = useGameStore(state => state.roomData);
   const submitCurse = useGameStore(state => state.submitCurse);
   const redrawHand = useGameStore(state => state.redrawHand);
-  const _loadRoomData = useGameStore(state => state.loadRoomData);
+  const loadRoomData = useGameStore(state => state.loadRoomData);
 
   const playSound = useSoundStore(state => state.playSound);
 
+  // Poll lastWinner to trigger winner reveal
   useEffect(() => {
     if (!session.room) return;
 
@@ -33,9 +34,9 @@ const PlayerView: React.FC = () => {
       if (result) {
         try {
           const data = JSON.parse(result);
-          if (winnerRef.current !== data.winner.trim()) {
-            winnerRef.current = data.winner.trim();
-            setWinnerData({ winner: data.winner.trim(), curse: data.curse });
+          if (winnerRef.current !== data.winner) {
+            winnerRef.current = data.winner;
+            setWinnerData(data);
             setShowWinner(true);
             if (!soundPlayedRef.current) {
               playSound('win');
@@ -43,7 +44,7 @@ const PlayerView: React.FC = () => {
             }
           }
         } catch {
-          // Ignore parse errors
+          // ignore parse errors
         }
       }
     }, 1000);
@@ -55,9 +56,19 @@ const PlayerView: React.FC = () => {
     };
   }, [session.room, playSound]);
 
+  // Poll room data to keep UI updated
+  useEffect(() => {
+    if (!session.room) return;
+    const interval = setInterval(() => {
+      loadRoomData(session.room);
+    }, 5000);
+    loadRoomData(session.room); // initial load
+    return () => clearInterval(interval);
+  }, [session.room, loadRoomData]);
+
   if (!roomData || !session.name) return null;
 
-  // Winner Reveal Modal
+  // Show winner modal if winner data exists
   if (showWinner && winnerData) {
     return (
       <WinningReveal
@@ -66,14 +77,14 @@ const PlayerView: React.FC = () => {
         onClose={() => {
           setShowWinner(false);
           setWinnerData(null);
-          setShowScoreboard(true);
+          setShowScoreboard(true); // Show scoreboard after winner reveal
         }}
       />
     );
   }
 
-  // Scoreboard Modal (stay until user closes)
-  if (showScoreboard && roomData) {
+  // Show scoreboard modal until manually closed
+  if (showScoreboard) {
     return (
       <ScoreboardModal
         scores={roomData.scores}
@@ -87,13 +98,12 @@ const PlayerView: React.FC = () => {
     );
   }
 
-  const playerHand = roomData.hands[session.name.trim()] || [];
-  const hasSubmitted = !!roomData.submissions[session.name.trim()];
+  const playerHand = roomData.hands[session.name] || [];
+  const hasSubmitted = !!roomData.submissions[session.name];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-
     try {
       if (wantRedraw) {
         await redrawHand();
