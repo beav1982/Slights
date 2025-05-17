@@ -25,12 +25,12 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   session: {
     name: '',
-    room: null,
+    room: null
   },
 
   setSession: (partial) =>
     set((state) => ({
-      session: { ...state.session, ...partial },
+      session: { ...state.session, ...partial }
     })),
 
   roomData: null,
@@ -38,6 +38,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadRoomData: async (roomCode: string) => {
     console.log(`[store.ts] loadRoomData: Loading room ${roomCode}`);
     try {
+      // Load all room data keys
       const keys = [
         `room:${roomCode}:judge`,
         `room:${roomCode}:players`,
@@ -45,46 +46,45 @@ export const useGameStore = create<GameStore>((set, get) => ({
         `room:${roomCode}:round`,
         `room:${roomCode}:slight`,
       ];
-
       const [judge, playersJson, scoresJson, round, slight] = await Promise.all(
-        keys.map((k) => clientKvGet(k))
+        keys.map(k => clientKvGet(k))
       );
 
-      if ([judge, playersJson, scoresJson, round, slight].some((v) => !v)) {
+      if ([judge, playersJson, scoresJson, round, slight].some(v => !v)) {
         console.error(`[store.ts] loadRoomData: Incomplete room data for ${roomCode}`);
         throw new Error('Incomplete room data');
       }
 
-      const players: string[] = JSON.parse(playersJson!).map((p: string) => p.trim());
-      const scores = JSON.parse(scoresJson!);
+      const players: string[] = JSON.parse(playersJson).map(p => p.trim());
+      const scores = JSON.parse(scoresJson);
       const submissions: Record<string, string> = {};
 
+      // Load submissions for **all players**, including judge!
       await Promise.all(
-        players.map(async (player) => {
+        players.map(async (player: string) => {
           const submission = await clientKvGet(`room:${roomCode}:submission:${player}`);
-          if (submission) submissions[player] = submission;
+          if (submission) submissions[player.trim()] = submission;
         })
       );
 
-      const currentPlayerName = get().session.name.trim();
+      const currentPlayerName = get().session.name;
       const hands: Record<string, string[]> = {};
       if (currentPlayerName) {
-        const hand = await clientKvGet(`room:${roomCode}:hand:${currentPlayerName}`);
-        if (hand) hands[currentPlayerName] = JSON.parse(hand);
+        const handRaw = await clientKvGet(`room:${roomCode}:hand:${currentPlayerName}`);
+        if (handRaw) hands[currentPlayerName] = JSON.parse(handRaw);
       }
 
       set({
         roomData: {
-          judge: judge!,
+          judge: judge.trim(),
           players,
           scores,
-          round: parseInt(round!, 10),
-          slight: slight!,
+          round: parseInt(round as string, 10),
+          slight,
           submissions,
-          hands,
-        },
+          hands
+        }
       });
-
       console.log(`[store.ts] loadRoomData: Room ${roomCode} data set in store.`);
     } catch (error) {
       console.error(`[store.ts] loadRoomData: Failed for room ${roomCode}:`, error);
@@ -121,7 +121,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const [playersJson, scoresJson] = await Promise.all([
         clientKvGet(`room:${code}:players`),
-        clientKvGet(`room:${code}:scores`),
+        clientKvGet(`room:${code}:scores`)
       ]);
 
       if (!playersJson || !scoresJson) {
@@ -129,7 +129,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         throw new Error('Room not found');
       }
 
-      const players: string[] = JSON.parse(playersJson).map((p: string) => p.trim());
+      const players: string[] = JSON.parse(playersJson).map(p => p.trim());
       const scores = JSON.parse(scoresJson);
 
       if (!players.includes(trimmedAlias)) {
@@ -164,7 +164,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (submittedIndex !== -1) hand.splice(submittedIndex, 1);
 
       if (hand.length < HAND_SIZE) {
-        const possibleCurses = curses.filter((c) => !hand.includes(c));
+        const possibleCurses = curses.filter(c => !hand.includes(c));
         const newCurse = drawRandom(possibleCurses.length > 0 ? possibleCurses : curses);
         if (newCurse) hand.push(newCurse);
       }
@@ -216,7 +216,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         clientKvSet(`room:${session.room}:round`, `${roomData.round + 1}`),
         clientKvSet(`room:${session.room}:slight`, drawRandom(slights)),
         clientKvSet(`room:${session.room}:judge`, nextJudge(roomData.players, roomData.judge)),
-        ...roomData.players.map((player) => clientKvDelete(`room:${session.room}:submission:${player}`)),
+        // Clear all submissions for next round
+        ...roomData.players.map(player => clientKvDelete(`room:${session.room}:submission:${player}`))
       ]);
 
       playSound('win');
@@ -232,12 +233,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const audio = document.getElementById(`${sound}Sound`) as HTMLAudioElement;
       if (audio) {
         audio.currentTime = 0;
-        audio.play().catch((e) => console.error('Error playing sound:', e));
+        audio.play().catch(e => console.error('Error playing sound:', e));
       } else {
         console.warn(`[store.ts] playSound: Audio element '${sound}Sound' not found.`);
       }
     } else {
       console.warn(`[store.ts] playSound: Attempted to play sound in non-browser environment.`);
     }
-  },
+  }
 }));
