@@ -5,7 +5,6 @@ import tseslint from 'typescript-eslint';
 import nextPlugin from '@next/eslint-plugin-next';
 import reactHooks from 'eslint-plugin-react-hooks';
 // import reactRefresh from 'eslint-plugin-react-refresh'; // Likely not needed with Next.js
-
 export default tseslint.config(
   // 1. Global ignores
   {
