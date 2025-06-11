@@ -1,7 +1,7 @@
 // src/pages/api/kv/set.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-export const config = {
+export const config: NextApiConfig = {
   runtime: 'nodejs',
 };
 
