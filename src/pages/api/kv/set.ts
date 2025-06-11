@@ -1,11 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { callUpstash } from '../../../lib/upstash';
 
 export const config = {
   runtime: 'nodejs',
 };
 
-const BASE_URL = process.env.KV_REST_API_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN;
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,10 +15,6 @@ export default async function handler(
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  if (!BASE_URL || !TOKEN) {
-    console.error("[API /kv/set] Upstash URL or Token is missing from server environment variables!");
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
 
   const { key, value } = req.body;
 
@@ -29,13 +24,7 @@ export default async function handler(
 
   try {
     console.log(`[API /kv/set] Setting key: ${key}`);
-    const upstashResponse = await fetch(`${BASE_URL}/set/${key}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-      },
-      body: value,
-    });
+    const upstashResponse = await callUpstash(['SET', key, value]);
 
     if (!upstashResponse.ok) {
       const errorText = await upstashResponse.text();

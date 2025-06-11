@@ -1,0 +1,17 @@
+export const BASE_URL = process.env.KV_REST_API_URL;
+export const TOKEN = process.env.KV_REST_API_TOKEN;
+
+export async function callUpstash(body: unknown[]): Promise<Response> {
+  if (!BASE_URL || !TOKEN) {
+    throw new Error('Upstash URL or token missing');
+  }
+  return fetch(BASE_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+

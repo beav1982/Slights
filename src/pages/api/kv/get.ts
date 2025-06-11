@@ -1,12 +1,11 @@
 // src/pages/api/kv/get.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { callUpstash } from '../../../lib/upstash';
 
 export const config = {
   runtime: 'nodejs',
 };
 
-const BASE_URL = process.env.KV_REST_API_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN;
 
 type Data = {
   result?: string | null;
@@ -23,10 +22,6 @@ export default async function handler(
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  if (!BASE_URL || !TOKEN) {
-    console.error("[API /kv/get] Upstash URL or Token is missing from server environment variables!");
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
 
   const { key } = req.query;
 
@@ -36,12 +31,7 @@ export default async function handler(
 
   try {
     console.log(`[API /kv/get] Attempting to get key: ${key}`);
-    const upstashResponse = await fetch(`${BASE_URL}/get/${key}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-      },
-    });
+    const upstashResponse = await callUpstash(['GET', key]);
 
     if (!upstashResponse.ok) {
       const errorText = await upstashResponse.text();
@@ -49,7 +39,7 @@ export default async function handler(
       try {
         const upstashError = JSON.parse(errorText);
         return res.status(upstashResponse.status).json({ error: `Upstash error: ${upstashError.error || errorText}` });
-      } catch (_e) { // Changed 'e' to '_e'
+      } catch (_e) {
         return res.status(upstashResponse.status).json({ error: `Upstash error: ${errorText}` });
       }
     }
@@ -58,7 +48,7 @@ export default async function handler(
     console.log(`[API /kv/get] Successfully got key: ${key}. Value:`, data.result ? String(data.result).substring(0,50) + '...' : null);
     return res.status(200).json({ result: data.result ?? null });
 
-  } catch (error: unknown) { // Changed 'error: any' to 'error: unknown'
+  } catch (error: unknown) {
     console.error(`[API /kv/get] Internal error getting key ${key}:`, error);
     const message = error instanceof Error ? error.message : 'Failed to get value from KV store';
     return res.status(500).json({ error: message, details: String(error) });
