@@ -1,6 +1,10 @@
 export const BASE_URL = process.env.KV_REST_API_URL;
 export const TOKEN = process.env.KV_REST_API_TOKEN;
 
+import https from 'node:https';
+
+const agent = new https.Agent({ family: 4 });
+
 export async function callUpstash(body: unknown[]): Promise<Response> {
   if (!BASE_URL || !TOKEN) {
     throw new Error('Upstash URL or token missing');
@@ -12,8 +16,11 @@ export async function callUpstash(body: unknown[]): Promise<Response> {
         Authorization: `Bearer ${TOKEN}`,
         'Content-Type': 'application/json',
       },
+      // Prefer IPv4 to avoid potential IPv6 routing issues
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(agent ? { agent } : {} as any),
       body: JSON.stringify(body),
-    });
+    } as RequestInit);
   } catch (error) {
     console.error('[lib/upstash] fetch failed:', error);
     const message =
