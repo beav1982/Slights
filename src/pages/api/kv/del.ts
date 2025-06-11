@@ -1,4 +1,3 @@
-// src/pages/api/kv/del.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { callUpstash } from '../../../lib/upstash';
 
@@ -10,7 +9,7 @@ export const config = {
 type Data = {
   result?: number;
   error?: string;
-  details?: string; // Keep details for structured error
+  details?: string;
 };
 
 export default async function handler(
