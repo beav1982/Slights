@@ -1,6 +1,10 @@
 // src/pages/api/kv/del.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+export const config = {
+  runtime: 'nodejs',
+};
+
 const BASE_URL = process.env.KV_REST_API_URL;
 const TOKEN = process.env.KV_REST_API_TOKEN;
 
