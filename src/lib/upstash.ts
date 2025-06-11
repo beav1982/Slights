@@ -1,11 +1,14 @@
-export const BASE_URL = process.env.KV_REST_API_URL;
-export const TOKEN = process.env.KV_REST_API_TOKEN;
-
 import https from 'node:https';
+
+// Re-create these for each call so values from the environment are read at runtime
+// rather than during module initialization.
+
 
 const agent = new https.Agent({ family: 4 });
 
 export async function callUpstash(body: unknown[]): Promise<Response> {
+  const BASE_URL = process.env.KV_REST_API_URL;
+  const TOKEN = process.env.KV_REST_API_TOKEN;
   if (!BASE_URL || !TOKEN) {
     throw new Error('Upstash URL or token missing');
   }
