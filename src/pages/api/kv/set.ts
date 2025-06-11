@@ -1,12 +1,15 @@
-// src/pages/api/kv/set.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+export const config = {
+  runtime: 'nodejs',
+};
 
 const BASE_URL = process.env.KV_REST_API_URL;
 const TOKEN = process.env.KV_REST_API_TOKEN;
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse // Type for res.json() will be inferred or can be more specific
+  res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -44,7 +47,7 @@ export default async function handler(
     console.log(`[API /kv/set] Successfully set key: ${key}. Upstash response:`, data);
     return res.status(200).json(data);
 
-  } catch (error: unknown) { // Changed 'error: any' to 'error: unknown'
+  } catch (error: unknown) {
     console.error(`[API /kv/set] Error setting key ${key}:`, error);
     const message = error instanceof Error ? error.message : 'Failed to set value in KV store';
     return res.status(500).json({ error: message, details: String(error) });
