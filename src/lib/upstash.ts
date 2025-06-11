@@ -15,11 +15,12 @@ export async function callUpstash(body: unknown[]): Promise<Response> {
       body: JSON.stringify(body),
     });
   } catch (error) {
+    console.error('[lib/upstash] fetch failed:', error);
     const message =
       error instanceof Error
         ? `Network request failed: ${error.message}`
         : 'Network request failed';
-    throw new Error(message);
+    throw new Error(message, { cause: error instanceof Error ? error : undefined });
   }
 }
 
