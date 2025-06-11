@@ -1,8 +1,8 @@
 // src/pages/api/kv/set.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-export const config: NextApiConfig = {
-  runtime: 'nodejs',
+  res: NextApiResponse
+  } catch (error: unknown) {
 };
 
 const BASE_URL = process.env.KV_REST_API_URL;
