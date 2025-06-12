@@ -20,8 +20,7 @@ export async function callUpstash(body: unknown[]): Promise<Response> {
         'Content-Type': 'application/json',
       },
       // Prefer IPv4 to avoid potential IPv6 routing issues
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...(agent ? { agent } : {} as any),
+      dispatcher: agent,
       body: JSON.stringify(body),
     } as RequestInit);
   } catch (error) {
