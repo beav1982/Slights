@@ -7,8 +7,10 @@ import https from 'node:https';
 const agent = new https.Agent({ family: 4 });
 
 export async function callUpstash(body: unknown[]): Promise<Response> {
-  const BASE_URL = process.env.KV_REST_API_URL;
-  const TOKEN = process.env.KV_REST_API_TOKEN;
+  const BASE_URL =
+    process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const TOKEN =
+    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!BASE_URL || !TOKEN) {
     throw new Error('Upstash URL or token missing');
   }
