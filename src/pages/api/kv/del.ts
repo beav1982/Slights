@@ -1,13 +1,15 @@
-// src/pages/api/kv/del.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { callUpstash } from '../../../lib/upstash';
 
-const BASE_URL = process.env.KV_REST_API_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN;
+export const config = {
+  runtime: 'nodejs',
+};
+
 
 type Data = {
   result?: number;
   error?: string;
-  details?: string; // Keep details for structured error
+  details?: string;
 };
 
 export default async function handler(
@@ -19,10 +21,6 @@ export default async function handler(
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  if (!BASE_URL || !TOKEN) {
-    console.error("[API /kv/del] Upstash URL or Token is missing from server environment variables!");
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
 
   const { key } = req.body;
 
@@ -32,14 +30,7 @@ export default async function handler(
 
   try {
     console.log(`[API /kv/del] Attempting to delete key: ${key}`);
-    const upstashResponse = await fetch(`${BASE_URL}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(["DEL", key]),
-    });
+    const upstashResponse = await callUpstash(["DEL", key]);
 
     if (!upstashResponse.ok) {
       const errorText = await upstashResponse.text();
@@ -47,7 +38,7 @@ export default async function handler(
       try {
         const upstashError = JSON.parse(errorText);
         return res.status(upstashResponse.status).json({ error: `Upstash error: ${upstashError.error || errorText}` });
-      } catch (_e) { // Changed 'e' to '_e'
+      } catch (_e) {
         return res.status(upstashResponse.status).json({ error: `Upstash error: ${errorText}` });
       }
     }
@@ -56,7 +47,7 @@ export default async function handler(
     console.log(`[API /kv/del] Successfully deleted key: ${key}. Result:`, data.result);
     return res.status(200).json({ result: data.result });
 
-  } catch (error: unknown) { // Changed 'error: any' to 'error: unknown'
+  } catch (error: unknown) {
     console.error(`[API /kv/del] Internal error deleting key ${key}:`, error);
     const message = error instanceof Error ? error.message : 'Failed to delete value from KV store';
     return res.status(500).json({ error: message, details: String(error) });

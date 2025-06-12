@@ -1,22 +1,20 @@
-// src/pages/api/kv/set.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { callUpstash } from '../../../lib/upstash';
 
-const BASE_URL = process.env.KV_REST_API_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN;
+export const config = {
+  runtime: 'nodejs',
+};
+
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse // Type for res.json() will be inferred or can be more specific
+  res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  if (!BASE_URL || !TOKEN) {
-    console.error("[API /kv/set] Upstash URL or Token is missing from server environment variables!");
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
 
   const { key, value } = req.body;
 
@@ -26,13 +24,7 @@ export default async function handler(
 
   try {
     console.log(`[API /kv/set] Setting key: ${key}`);
-    const upstashResponse = await fetch(`${BASE_URL}/set/${key}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-      },
-      body: value,
-    });
+    const upstashResponse = await callUpstash(['SET', key, value]);
 
     if (!upstashResponse.ok) {
       const errorText = await upstashResponse.text();
@@ -44,9 +36,10 @@ export default async function handler(
     console.log(`[API /kv/set] Successfully set key: ${key}. Upstash response:`, data);
     return res.status(200).json(data);
 
-  } catch (error: unknown) { // Changed 'error: any' to 'error: unknown'
+  } catch (error: unknown) {
     console.error(`[API /kv/set] Error setting key ${key}:`, error);
     const message = error instanceof Error ? error.message : 'Failed to set value in KV store';
     return res.status(500).json({ error: message, details: String(error) });
   }
 }
+
