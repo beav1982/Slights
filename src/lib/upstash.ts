@@ -1,10 +1,16 @@
-import https from 'node:https';
+import { Agent } from 'undici';
+import dns from 'node:dns';
 
 // Re-create these for each call so values from the environment are read at runtime
 // rather than during module initialization.
 
 
-const agent = new https.Agent({ family: 4 });
+// Use an Undici agent so Node's fetch prefers IPv4 when dispatching requests
+const dispatcher = new Agent({
+  connect: {
+    lookup: (hostname, opts, cb) => dns.lookup(hostname, { family: 4 }, cb),
+  },
+});
 
 export async function callUpstash(body: unknown[]): Promise<Response> {
   const BASE_URL =
@@ -22,7 +28,7 @@ export async function callUpstash(body: unknown[]): Promise<Response> {
         'Content-Type': 'application/json',
       },
       // Prefer IPv4 to avoid potential IPv6 routing issues
-      dispatcher: agent,
+      dispatcher,
       body: JSON.stringify(body),
     } as RequestInit);
   } catch (error) {
