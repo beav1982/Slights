@@ -20,6 +20,14 @@ const GamePage: React.FC = () => {
       loadRoom(roomCode).catch(err => {
         console.error('[GamePage] Failed to load room:', err);
       });
+
+      const interval = setInterval(() => {
+        loadRoom(roomCode).catch(err => {
+          console.error('[GamePage] Poll error:', err);
+        });
+      }, 2000);
+
+      return () => clearInterval(interval);
     }
   }, [roomCode, loadRoom]);
 
