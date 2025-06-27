@@ -79,11 +79,11 @@ const PlayerView: React.FC = () => {
       <ScoreboardModal
         scores={roomData.scores}
         judge={roomData.judge}
-        onClose={() => {
+        onClose={async () => {
+          await acknowledgeWinner();
           setShowScoreboard(false);
           winnerRef.current = null;      // Reset winner tracking after manual close
           soundPlayedRef.current = false; // Reset sound flag to allow future plays
-          acknowledgeWinner();
         }}
       />
     );
