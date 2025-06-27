@@ -18,6 +18,7 @@ const JudgeView: React.FC = () => {
   const session = useGameStore(state => state.session);
   const roomData = useGameStore(state => state.roomData);
   const pickWinner = useGameStore(state => state.pickWinner);
+  const acknowledgeWinner = useGameStore(state => state.acknowledgeWinner);
 
   const playSound = useSoundStore(state => state.playSound);
 
@@ -79,6 +80,7 @@ const JudgeView: React.FC = () => {
           setShowScoreboard(false);
           winnerRef.current = null;      // Reset winner tracking after manual close
           soundPlayedRef.current = false; // Reset sound flag to allow future plays
+          acknowledgeWinner();
         }}
       />
     );

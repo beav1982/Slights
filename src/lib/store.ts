@@ -19,6 +19,8 @@ interface GameStore {
   redrawHand: () => Promise<void>;
   pickWinner: (winner: string) => Promise<void>;
 
+  acknowledgeWinner: () => Promise<void>;
+
   playSound: (sound: 'submit' | 'win' | 'error' | 'click') => void;
 }
 
@@ -225,6 +227,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch (error) {
       console.error(`[store.ts] pickWinner: Error in room ${session.room}:`, error);
       throw error;
+    }
+  },
+
+  acknowledgeWinner: async () => {
+    const { session, loadRoomData } = get();
+    if (!session.room) return;
+    try {
+      await clientKvDelete(`room:${session.room}:lastWinner`);
+      await loadRoomData(session.room);
+    } catch (error) {
+      console.error(`[store.ts] acknowledgeWinner: Error in room ${session.room}:`, error);
     }
   },
 
