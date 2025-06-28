@@ -80,7 +80,6 @@ const PlayerView: React.FC = () => {
         judge={roomData.judge}
         onClose={() => {
           setShowScoreboard(false);
-          winnerRef.current = null;      // Reset winner tracking after manual close
           soundPlayedRef.current = false; // Reset sound flag to allow future plays
         }}
       />
